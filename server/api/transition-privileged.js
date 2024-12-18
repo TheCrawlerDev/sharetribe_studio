@@ -6,6 +6,8 @@ const {
   serialize,
   fetchCommission,
 } = require('../api-util/sdk');
+const { types } = require('sharetribe-flex-sdk');
+const { Money } = types;
 
 module.exports = (req, res) => {
   const { isSpeculative, orderData, bodyParams, queryParams } = req.body;
@@ -19,10 +21,8 @@ module.exports = (req, res) => {
     .then(([showListingResponse, fetchAssetsResponse]) => {
       const listing = showListingResponse.data.data;
       const commissionAsset = fetchAssetsResponse.data.data[0];
-
       const { providerCommission, customerCommission } =
         commissionAsset?.type === 'jsonAsset' ? commissionAsset.attributes.data : {};
-
       lineItems = transactionLineItems(
         listing,
         { ...orderData, ...bodyParams.params },
@@ -52,6 +52,12 @@ module.exports = (req, res) => {
     })
     .then(apiResponse => {
       const { status, statusText, data } = apiResponse;
+      data.data.attributes.lineItems[0].addOns = data.data.attributes.protectedData.addOns;
+      data.data.attributes.lineItems[0].studioOnlyPrice = new Money(
+        data.data.attributes.protectedData.studioOnlyPrice ??
+          data.data.attributes.lineItems[0].unitPrice,
+        'USD'
+      );
       res
         .status(status)
         .set('Content-Type', 'application/transit+json')

@@ -41,6 +41,10 @@ module.exports = (req, res) => {
         params: {
           ...params,
           lineItems,
+          protectedData: {
+            addOns: lineItems[0]?.addOns,
+            studioOnlyPrice: convertDecimalJSToNumber(getAmountAsDecimalJS(lineItems[0]?.studioOnlyPrice))
+          },
         },
       };
 
@@ -51,6 +55,12 @@ module.exports = (req, res) => {
     })
     .then(apiResponse => {
       const { status, statusText, data } = apiResponse;
+      data.data.attributes.lineItems[0].addOns = data.data.attributes.protectedData.addOns;
+      data.data.attributes.lineItems[0].studioOnlyPrice = new Money(
+        data.data.attributes.protectedData.studioOnlyPrice ??
+          data.data.attributes.lineItems[0].unitPrice,
+        'USD'
+      );
       res
         .status(status)
         .set('Content-Type', 'application/transit+json')

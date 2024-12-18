@@ -1,5 +1,4 @@
 const helmet = require('helmet');
-const crypto = require('crypto');
 
 const dev = process.env.REACT_APP_ENV === 'development';
 const self = "'self'";
@@ -7,26 +6,13 @@ const unsafeInline = "'unsafe-inline'";
 const unsafeEval = "'unsafe-eval'";
 const data = 'data:';
 const blob = 'blob:';
+const s3 = 's3:';
 const devImagesMaybe = dev ? ['*.localhost:8000'] : [];
 const baseUrl = process.env.REACT_APP_SHARETRIBE_SDK_BASE_URL || 'https://flex-api.sharetribe.com';
-// Asset Delivery API is using a different domain than other Sharetribe APIs
+// Asset Delivery API is using a different domain than other Flex APIs
 // cdn.st-api.com
 // If assetCdnBaseUrl is used to initialize SDK (for proxy purposes), then that URL needs to be in CSP
 const assetCdnBaseUrl = process.env.REACT_APP_SHARETRIBE_SDK_ASSET_CDN_BASE_URL;
-
-exports.generateCSPNonce = (req, res, next) => {
-  // Asynchronously generate a unique nonce for each request.
-  crypto.randomBytes(32, (err, randomBytes) => {
-    if (err) {
-      // If there was a problem, bail.
-      next(err);
-    } else {
-      // Save the nonce, as a hex string, to `res.locals` for later.
-      res.locals.cspNonce = randomBytes.toString('hex');
-      next();
-    }
-  });
-};
 
 // Default CSP whitelist.
 //
@@ -47,17 +33,9 @@ const defaultDirectives = {
     'events.mapbox.com',
 
     // Google Analytics
-    // TODO: Signals support needs more work
-    // https://developers.google.com/tag-platform/security/guides/csp
+    'www.googletagmanager.com',
     '*.google-analytics.com',
-    '*.analytics.google.com',
-    '*.googletagmanager.com',
-    '*.g.doubleclick.net',
-    '*.google.com',
-
-    // Plausible analytics
-    'plausible.io',
-    '*.plausible.io',
+    'stats.g.doubleclick.net',
 
     'fonts.googleapis.com',
 
@@ -67,13 +45,7 @@ const defaultDirectives = {
   ],
   fontSrc: [self, data, 'assets-sharetribecom.sharetribe.com', 'fonts.gstatic.com'],
   formAction: [self],
-  frameSrc: [
-    self,
-    '*.stripe.com',
-    '*.youtube-nocookie.com',
-    'https://bid.g.doubleclick.net',
-    'https://td.doubleclick.net',
-  ],
+  frameSrc: [self, '*.stripe.com', '*.youtube-nocookie.com'],
   imgSrc: [
     self,
     data,
@@ -92,38 +64,31 @@ const defaultDirectives = {
     '*.googleapis.com',
     '*.ggpht.com',
 
-    // Giphy
-    '*.giphy.com',
-
     // Google Analytics
-    '*.google-analytics.com',
-    '*.analytics.google.com',
-    '*.googletagmanager.com',
-    '*.g.doubleclick.net',
-    '*.google.com',
-    'google.com',
+    'www.googletagmanager.com',
+    'www.google.com',
+    'www.google-analytics.com',
+    'stats.g.doubleclick.net',
 
     // Youtube (static image)
     '*.ytimg.com',
-
-    // Stripe
     '*.stripe.com',
+
+    '*.mfiles.co.uk',
   ],
   scriptSrc: [
     self,
-    (req, res) => `'nonce-${res.locals.cspNonce}'`,
+    unsafeInline,
     unsafeEval,
+    data,
     'maps.googleapis.com',
     'api.mapbox.com',
-    '*.googletagmanager.com',
+    'www.googletagmanager.com',
     '*.google-analytics.com',
-    'www.googleadservices.com',
-    '*.g.doubleclick.net',
     'js.stripe.com',
-    // Plausible analytics
-    'plausible.io',
   ],
   styleSrc: [self, unsafeInline, 'fonts.googleapis.com', 'api.mapbox.com'],
+  mediaSrc: [self, s3, 'sharetribe-studiobook-qa.s3.us-east-1.amazonaws.com', 'sharetribe-studiobook.s3.us-east-1.amazonaws.com'],
 };
 
 /**
@@ -135,7 +100,7 @@ const defaultDirectives = {
  * @param {Boolean} reportOnly In the report mode, requests are only
  * reported to the report URL instead of blocked
  */
-exports.csp = (reportUri, reportOnly) => {
+module.exports = (reportUri, reportOnly) => {
   // ================ START CUSTOM CSP URLs ================ //
 
   // Add custom CSP whitelisted URLs here. See commented example

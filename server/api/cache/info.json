@@ -1,0 +1,8 @@
+{
+    "force2TransitJsonEnable": false,
+    "transitJsonEnable": true,
+    "csp": false,
+    "sitemap": true,
+    "robots": true,
+    "crontabs": true
+}
