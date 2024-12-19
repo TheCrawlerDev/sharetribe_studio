@@ -26,6 +26,7 @@ import LineItemProviderCommissionRefundMaybe from './LineItemProviderCommissionR
 import LineItemRefundMaybe from './LineItemRefundMaybe';
 import LineItemTotalPrice from './LineItemTotalPrice';
 import LineItemUnknownItemsMaybe from './LineItemUnknownItemsMaybe';
+import LineItemAddOnsMaybe from './LineItemAddOnsMaybe';
 
 import css from './OrderBreakdown.module.css';
 
@@ -45,10 +46,8 @@ export const OrderBreakdownComponent = props => {
 
   const isCustomer = userRole === 'customer';
   const isProvider = userRole === 'provider';
-  const allLineItems = transaction.attributes.lineItems || [];
-  // We'll show only line-items that are specific for the current userRole (customer vs provider)
-  const lineItems = allLineItems.filter(lineItem => lineItem.includeFor.includes(userRole));
-  const unitLineItem = lineItems.find(
+  const lineItems = transaction.attributes.lineItems;
+  const unitLineItem = lineItems?.find(
     item => LISTING_UNIT_TYPES.includes(item.code) && !item.reversal
   );
   // Line-item code that matches with base unit: day, night, hour, item
@@ -108,6 +107,7 @@ export const OrderBreakdownComponent = props => {
       />
 
       <LineItemBasePriceMaybe lineItems={lineItems} code={lineItemUnitType} intl={intl} />
+      <LineItemAddOnsMaybe lineItems={lineItems} code={lineItemUnitType} intl={intl} />
       <LineItemShippingFeeMaybe lineItems={lineItems} intl={intl} />
       <LineItemPickupFeeMaybe lineItems={lineItems} intl={intl} />
       <LineItemUnknownItemsMaybe lineItems={lineItems} isProvider={isProvider} intl={intl} />

@@ -44,32 +44,25 @@
   color: var(--colorGrey100);
 }
 
-.fieldDatePicker {
-  flex-grow: 1;
-}
-
 .fieldDateInput {
-  width: calc(100% - 24px);
-  margin: 0 0 0 24px;
+  flex-grow: 1;
 
-  @media (--viewportMedium) {
-    width: 100%;
-    margin: 0;
+  & :global(.SingleDatePickerInput) {
+    width: calc(100% - 24px);
+    margin: 0 0 0 24px;
+
+    @media (--viewportMedium) {
+      width: 100%;
+      margin: 0;
+    }
   }
-}
 
-.fieldDatePopup {
-  position: absolute;
-  z-index: 1;
-  width: calc(200% + 24px);
+  & :global(.SingleDatePicker_picker__directionLeft) {
+    width: 100vw;
 
-  @media (min-width: 320px) {
-    width: calc(200% - 24px);
-    margin: 0 24px;
-  }
-  @media (--viewportMedium) {
-    width: calc(200% + 24px);
-    margin: 0;
+    @media (--viewportMedium) {
+      width: calc(200% + 24px);
+    }
   }
 }
 

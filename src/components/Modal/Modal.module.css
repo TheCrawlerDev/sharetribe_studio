@@ -39,7 +39,7 @@
     flex-direction: column;
     padding: var(--modalPadding);
 
-    background-color: var(--colorWhite);
+    background-color: var(--colorBlack);
     border-radius: var(--borderRadius);
     border-bottom: none;
 

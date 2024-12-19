@@ -9,28 +9,25 @@ import {
   linkedinIcon,
   pinterestIcon,
   tiktokIcon,
-  xIcon,
+  twitterIcon,
   youtubeIcon,
 } from './Icons';
 
 import css from './SocialMediaLink.module.css';
 
-const PLATFORM_CONF = {
-  facebook: { icon: facebookIcon, name: 'Facebook' },
-  instagram: { icon: instagramIcon, name: 'Instagram' },
-  linkedin: { icon: linkedinIcon, name: 'LinkedIn' },
-  pinterest: { icon: pinterestIcon, name: 'Pinterest' },
-  tiktok: { icon: tiktokIcon, name: 'TikTok' },
-  twitter: { icon: xIcon, name: 'X' },
-  youtube: { icon: youtubeIcon, name: 'YouTube' },
+const ICON_CONF = {
+  facebook: facebookIcon,
+  instagram: instagramIcon,
+  linkedin: linkedinIcon,
+  pinterest: pinterestIcon,
+  tiktok: tiktokIcon,
+  twitter: twitterIcon,
+  youtube: youtubeIcon,
 };
 
 const getIconConf = platform => {
-  const icon = PLATFORM_CONF[platform]?.icon || null;
+  const icon = ICON_CONF[platform] || null;
   return icon;
-};
-const getIconTitle = platform => {
-  return PLATFORM_CONF[platform]?.name || platform;
 };
 
 export const supportedPlatforms = [
@@ -44,16 +41,16 @@ export const supportedPlatforms = [
 ];
 
 export const SocialMediaLink = React.forwardRef((props, ref) => {
-  const Icon = getIconConf(props.platform);
+  const Icon = getIconConf(props.children);
 
-  const { className, rootClassName, href, platform } = props;
+  const { className, rootClassName, href, title, children } = props;
   const classes = classNames(rootClassName || css.link, className);
-  const titleMaybe = Icon ? { title: getIconTitle(platform) } : {};
-  const children = Icon ? <Icon /> : platform;
-  const linkProps = { className: classes, href, children, ...titleMaybe };
+  const titleMaybe = title ? { title } : {};
+  const iconOrChildren = Icon ? <Icon /> : children;
+  const linkProps = { className: classes, href, children: iconOrChildren, ...titleMaybe };
 
   // Markdown parser (rehype-sanitize) might return undefined href
-  if (!href || !platform) {
+  if (!href || !children) {
     return null;
   }
 
@@ -72,6 +69,6 @@ SocialMediaLink.propTypes = {
   title: string,
   rootClassName: string,
   className: string,
-  platform: node.isRequired,
+  children: node.isRequired,
   href: string.isRequired,
 };

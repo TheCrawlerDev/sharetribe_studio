@@ -14,7 +14,7 @@ const getPageAssetName = assetPath => {
 
 // This page resolves what route on the client app should be shown,
 // when Console redirects the operator to the client app.
-// The URL that Sharetribe Console uses looks like this:
+// The URL that Flex Console uses looks like this:
 // https://my.marketplace.com/preview?asset-path=content/pages/privacy-policy.json
 //
 // If the asset path starts with "content/pages",
@@ -31,21 +31,6 @@ const PreviewResolverPage = props => {
   const toCMSPage = <NamedRedirect name="CMSPage" params={{ pageId: pageAssetName }} />;
   const toLandingPage = <NamedRedirect name="LandingPage" />;
 
-  const listingId = parsedQueryString?.['listingId'];
-  const hasListingId = !!listingId;
-  const listingStatus = parsedQueryString?.['listingStatus'];
-  const useOwnListing = ['draft', 'pending-approval'].includes(listingStatus);
-  // TODO the old named route, ListingPageVariant for unpublished listings, is confusing nowadays
-  // since we use variant also to mean a layout variant on the listing page.
-  const toListingPage = useOwnListing ? (
-    <NamedRedirect
-      name="ListingPageVariant"
-      params={{ id: listingId, slug: 'from-console', variant: listingStatus }}
-    />
-  ) : (
-    <NamedRedirect name="ListingPage" params={{ id: listingId, slug: 'from-console' }} />
-  );
-
   // Check if a specific page should be shown
   // If pageAssetName can't be detected, redirect to LandingPage
   return pageAssetName === 'terms-of-service'
@@ -56,8 +41,6 @@ const PreviewResolverPage = props => {
     ? toLandingPage
     : hasCMSPagePath
     ? toCMSPage
-    : hasListingId
-    ? toListingPage
     : toLandingPage;
 };
 

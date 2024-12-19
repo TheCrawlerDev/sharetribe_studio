@@ -89,7 +89,6 @@ const ResponsiveImage = props => {
     srcSet,
     ...rest,
   };
-
   return <img alt={alt} {...imgProps} />;
 };
 

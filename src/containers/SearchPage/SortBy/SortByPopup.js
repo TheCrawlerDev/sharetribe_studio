@@ -63,7 +63,6 @@ const SortByPopup = props => {
       contentPosition="left"
       onToggleActive={onToggleActive}
       isOpen={isOpen}
-      preferScreenWidthOnMobile
     >
       <MenuLabel rootClassName={menuLabelClasses}>
         {menuLabel}

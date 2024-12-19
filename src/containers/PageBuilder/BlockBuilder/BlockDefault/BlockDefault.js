@@ -31,32 +31,28 @@ const BlockDefault = props => {
     media,
     responsiveImageSizes,
     options,
-    alignment,
   } = props;
   const classes = classNames(rootClassName || css.root, className);
   const hasTextComponentFields = hasDataInFields([title, text, callToAction], options);
-
-  const alignmentClasses = {
-    left: css.alignLeft,
-    center: css.alignCenter,
-    right: css.alignRight,
-  };
-
-  const alignmentClass = alignmentClasses[alignment];
-
+  const buttonOrLabel =
+    callToAction?.fieldType == 'externalButtonLink' ? (
+      <label className={css.labelHomeMobileBlock}>{callToAction.content}</label>
+    ) : (
+      <Field data={callToAction} className={ctaButtonClass} options={options} />
+    );
   return (
     <BlockContainer id={blockId} className={classes}>
       <FieldMedia
-        media={media}
+        media={{ ...media, href: !!callToAction?.href ? callToAction?.href : "" }}
         sizes={responsiveImageSizes}
         className={mediaClassName}
         options={options}
       />
       {hasTextComponentFields ? (
-        <div className={classNames(textClassName, alignmentClass, css.text)}>
+        <div className={classNames(textClassName, css.text)}>
           <Field data={title} options={options} />
           <Field data={text} options={options} />
-          <Field data={callToAction} className={ctaButtonClass} options={options} />
+          {buttonOrLabel}
         </div>
       ) : null}
     </BlockContainer>
@@ -82,7 +78,7 @@ BlockDefault.defaultProps = {
 };
 
 BlockDefault.propTypes = {
-  blockId: string,
+  blockId: string.isRequired,
   className: string,
   rootClassName: string,
   mediaClassName: string,

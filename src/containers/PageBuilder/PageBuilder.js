@@ -53,7 +53,7 @@ const getMetadata = (meta, schemaType, fieldOptions) => {
 const LoadingSpinner = () => {
   return (
     <div className={css.loading}>
-      <IconSpinner delay={600} />
+      <IconSpinner />
     </div>
   );
 };
@@ -88,7 +88,6 @@ const PageBuilder = props => {
     fallbackPage,
     schemaType,
     options,
-    currentPage,
     ...pageProps
   } = props;
 
@@ -101,7 +100,6 @@ const PageBuilder = props => {
   // - "meta" (which is data that goes inside <head>)
   const { sections = [], meta = {} } = pageAssetsData || {};
   const pageMetaProps = getMetadata(meta, schemaType, options?.fieldComponents);
-
   const layoutAreas = `
     topbar
     main
@@ -115,7 +113,7 @@ const PageBuilder = props => {
           return (
             <>
               <Topbar as="header" className={css.topbar}>
-                <TopbarContainer currentPage={currentPage} />
+                <TopbarContainer />
               </Topbar>
               <Main as="main" className={css.main}>
                 {sections.length === 0 && inProgress ? (
@@ -124,9 +122,7 @@ const PageBuilder = props => {
                   <SectionBuilder sections={sections} options={options} />
                 )}
               </Main>
-              <Footer>
-                <FooterContainer />
-              </Footer>
+              <FooterContainer />
             </>
           );
         }}

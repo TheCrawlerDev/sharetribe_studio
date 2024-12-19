@@ -2,10 +2,12 @@
  * This is a wrapper component for different Layouts.
  * Navigational 'aside' content should be added to this wrapper.
  */
-import React, { useEffect, useState } from 'react';
-import { node, string } from 'prop-types';
+import React, { useEffect } from 'react';
+import { node, number, string, shape } from 'prop-types';
+import { compose } from 'redux';
 
 import { FormattedMessage } from '../../../util/reactIntl';
+import { withViewport } from '../../../util/uiHelpers';
 
 import { TabNav } from '../../../components';
 
@@ -45,7 +47,7 @@ const scrollToTab = (currentPage, scrollLeft, setScrollLeft) => {
 
     const needsSmoothScroll = scrollPositionCurrent !== scrollPositionNew;
 
-    if (parent.scrollTo && (!hasParentScrolled || (hasParentScrolled && needsSmoothScroll))) {
+    if (!hasParentScrolled || (hasParentScrolled && needsSmoothScroll)) {
       // Ensure that smooth scroll animation uses old position as starting point after navigation.
       parent.scrollTo({ left: scrollPositionCurrent });
       // Scroll to new position
@@ -57,27 +59,31 @@ const scrollToTab = (currentPage, scrollLeft, setScrollLeft) => {
 };
 
 const LayoutWrapperAccountSettingsSideNavComponent = props => {
-  const [mounted, setMounted] = useState(false);
   const [scrollLeft, setScrollLeft] = useGlobalState('scrollLeft');
-
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    const { currentPage, viewport } = props;
+    let scrollTimeout = null;
 
-  useEffect(() => {
-    if (mounted) {
-      const { currentPage } = props;
-      const hasMatchMedia = typeof window !== 'undefined' && window?.matchMedia;
-      const hasHorizontalTabLayout = hasMatchMedia
-        ? window.matchMedia(`(max-width: ${MAX_HORIZONTAL_NAV_SCREEN_WIDTH}px)`)?.matches
-        : true;
+    const { width } = viewport;
+    const hasViewport = width > 0;
+    const hasHorizontalTabLayout = hasViewport && width <= MAX_HORIZONTAL_NAV_SCREEN_WIDTH;
 
-      // Check if scrollToTab call is needed (tab is not visible on mobile)
-      if (hasHorizontalTabLayout) {
+    // Check if scrollToTab call is needed (tab is not visible on mobile)
+    if (hasHorizontalTabLayout) {
+      scrollTimeout = window.setTimeout(() => {
         scrollToTab(currentPage, scrollLeft, setScrollLeft);
-      }
+      }, 300);
     }
-  }, [mounted]);
+
+    return () => {
+      // Update scroll position when unmounting
+      const el = document.querySelector(`#${currentPage}Tab`);
+      setScrollLeft(el.parentElement.scrollLeft);
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+    };
+  });
 
   const { currentPage } = props;
 
@@ -114,9 +120,41 @@ const LayoutWrapperAccountSettingsSideNavComponent = props => {
         name: 'PaymentMethodsPage',
       },
     },
+    {
+      text: (
+        <FormattedMessage id="LayoutWrapperAccountSettingsSideNav.integrateCalendarsTabTitle" />
+      ),
+      selected: currentPage === 'IntegrateCalendarsPage',
+      id: 'IntegrateCalendarsPageTab',
+      linkProps: {
+        name: 'IntegrateCalendarsPage',
+      },
+    },
+    {
+      text: (
+        <FormattedMessage id="LayoutWrapperAccountSettingsSideNav.joinDiscord" />
+      ),
+      selected: currentPage === 'JoinDiscordPage',
+      id: 'JoinDiscordPageTab',
+      linkProps: {
+        name: 'JoinDiscordPage',
+      },
+      onlyForPremium: true,
+    },
+    // {
+    //   text: (
+    //     <FormattedMessage id="LayoutWrapperAccountSettingsSideNav.shareProfile" />
+    //   ),
+    //   selected: currentPage === 'ShareProfilePage',
+    //   id: 'ShareProfilePageTab',
+    //   linkProps: {
+    //     name: 'ShareProfilePage',
+    //   },
+    //   onlyForPremium: true,
+    // },
   ];
 
-  return <TabNav rootClassName={css.tabs} tabRootClassName={css.tab} tabs={tabs} />;
+  return <TabNav rootClassName={css.tabs} tabRootClassName={css.tab} tabs={tabs} premiumUser={!!props?.premiumUser} />;
 };
 
 LayoutWrapperAccountSettingsSideNavComponent.defaultProps = {
@@ -131,8 +169,16 @@ LayoutWrapperAccountSettingsSideNavComponent.propTypes = {
   className: string,
   rootClassName: string,
   currentPage: string,
+
+  // from withViewport
+  viewport: shape({
+    width: number.isRequired,
+    height: number.isRequired,
+  }).isRequired,
 };
 
-const LayoutWrapperAccountSettingsSideNav = LayoutWrapperAccountSettingsSideNavComponent;
+const LayoutWrapperAccountSettingsSideNav = compose(withViewport)(
+  LayoutWrapperAccountSettingsSideNavComponent
+);
 
 export default LayoutWrapperAccountSettingsSideNav;

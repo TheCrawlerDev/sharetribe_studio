@@ -35,6 +35,14 @@ const UserNav = props => {
         name: 'ContactDetailsPage',
       },
     },
+    {
+      text: <FormattedMessage id="UserNav.shareProfile" />,
+      selected: currentPage === 'ShareProfilePage',
+      disabled: false,
+      linkProps: {
+        name: 'ShareProfilePage',
+      },
+    },
   ];
 
   return (

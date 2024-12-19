@@ -1,34 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { bool, arrayOf, oneOfType } from 'prop-types';
+import React, { useState } from 'react';
+import { bool, arrayOf, number, shape, string } from 'prop-types';
 import { compose } from 'redux';
 import { connect } from 'react-redux';
 import classNames from 'classnames';
 
 import { useConfiguration } from '../../context/configurationContext';
-import { FormattedMessage, useIntl } from '../../util/reactIntl';
-import {
-  REVIEW_TYPE_OF_PROVIDER,
-  REVIEW_TYPE_OF_CUSTOMER,
-  SCHEMA_TYPE_MULTI_ENUM,
-  SCHEMA_TYPE_TEXT,
-  SCHEMA_TYPE_YOUTUBE,
-  propTypes,
-} from '../../util/types';
-import {
-  NO_ACCESS_PAGE_USER_PENDING_APPROVAL,
-  NO_ACCESS_PAGE_VIEW_LISTINGS,
-  PROFILE_PAGE_PENDING_APPROVAL_VARIANT,
-} from '../../util/urlHelpers';
-import {
-  isErrorNoViewingPermission,
-  isErrorUserPendingApproval,
-  isForbiddenError,
-  isNotFoundError,
-} from '../../util/errors';
-import { pickCustomFieldProps } from '../../util/fieldHelpers';
-import { hasPermissionToViewData, isUserAuthorized } from '../../util/userHelpers';
-import { richText } from '../../util/richText';
-
+import { FormattedMessage, injectIntl, intlShape } from '../../util/reactIntl';
+import { REVIEW_TYPE_OF_PROVIDER, REVIEW_TYPE_OF_CUSTOMER, propTypes } from '../../util/types';
+import { ensureCurrentUser, ensureUser } from '../../util/data';
+import { withViewport } from '../../util/uiHelpers';
 import { isScrollingDisabled } from '../../ducks/ui.duck';
 import { getMarketplaceEntities } from '../../ducks/marketplaceData.duck';
 import {
@@ -42,42 +22,168 @@ import {
   Reviews,
   ButtonTabNavHorizontal,
   LayoutSideNavigation,
-  NamedRedirect,
+  SocialLoginButton,
+  InlineTextButton,
 } from '../../components';
+import {
+  BandCampLogo,
+  WebsiteIconLogo,
+  InstagramLogo,
+  ItunesLogo,
+  SpotifyIconLogo,
+  SoundCloudLogo,
+  TidalIconLogo,
+} from '../../containers/AuthenticationPage/socialLoginLogos';
+import truncate from 'lodash/truncate';
 
 import TopbarContainer from '../../containers/TopbarContainer/TopbarContainer';
 import FooterContainer from '../../containers/FooterContainer/FooterContainer';
 import NotFoundPage from '../../containers/NotFoundPage/NotFoundPage';
+import Waveform from '../AudioPlayer/Waveform';
 
 import css from './ProfilePage.module.css';
-import SectionDetailsMaybe from './SectionDetailsMaybe';
-import SectionTextMaybe from './SectionTextMaybe';
-import SectionMultiEnumMaybe from './SectionMultiEnumMaybe';
-import SectionYoutubeVideoMaybe from './SectionYoutubeVideoMaybe';
+import { baseUrlSocial } from '../../util/added';
+import { baseApiExternalFiles } from '../../util/api';
+
+import VerifiedIconLogo from '../../assets/7641727.png';
 
 const MAX_MOBILE_SCREEN_WIDTH = 768;
-const MIN_LENGTH_FOR_LONG_WORDS = 20;
+
+const BIO_COLLAPSED_LENGTH = 170;
+
+const truncated = s => {
+  return truncate(s, {
+    length: BIO_COLLAPSED_LENGTH,
+
+    // Allow truncated text end only in specific characters. This will
+    // make the truncated text shorter than the length if the original
+    // text has to be shortened and the substring ends in a separator.
+    //
+    // This ensures that the final text doesn't get cut in the middle
+    // of a word.
+    separator: /\s|,|\.|:|;/,
+    omission: '…',
+  });
+};
+
+const ExpandableBio = props => {
+  const [expand, setExpand] = useState(false);
+  const { className, bio } = props;
+  const truncatedBio = truncated(bio);
+
+  const handleShowMoreClick = () => {
+    setExpand(true);
+  };
+  const showMore = (
+    <InlineTextButton rootClassName={css.showMore} onClick={handleShowMoreClick}>
+      <FormattedMessage id="UserCard.showFullBioLink" />
+    </InlineTextButton>
+  );
+  return (
+    <p className={className}>
+      {expand ? bio : truncatedBio}
+      {bio !== truncatedBio && !expand ? showMore : null}
+    </p>
+  );
+};
+
+ExpandableBio.defaultProps = { className: null };
+
+ExpandableBio.propTypes = {
+  className: string,
+  bio: string.isRequired,
+};
 
 export const AsideContent = props => {
-  const { user, displayName, showLinkToProfileSettingsPage } = props;
+  const { user, displayName, isCurrentUser } = props;
+
+  const bio = user?.attributes?.profile?.bio || '';
+
+  const hasBio = !!bio;
+
+  const publicData = user?.attributes?.profile?.publicData || {};
+
+  const openSocialNetWork = (networkName, baseUrl = '') => {
+    window.open(publicData[networkName]);
+  };
+
   return (
     <div className={css.asideContent}>
-      <AvatarLarge className={css.avatar} user={user} disableProfileLink />
-      <H2 as="h1" className={css.mobileHeading}>
-        {displayName ? (
-          <FormattedMessage id="ProfilePage.mobileHeading" values={{ name: displayName }} />
+      <div style={{ display: 'flex' }}>
+        <AvatarLarge className={css.avatar} user={user} disableProfileLink />
+        <H2 as="h3" className={css.mobileHeading}>
+          {displayName ? (
+            <FormattedMessage
+              id="UserCard.instagram"
+              values={{ instagram: publicData?.instagram }}
+            />
+          ) : null}
+        </H2>
+        <H2 as="h3" className={css.desktopHeading}>
+          {displayName}
+          {/* <FormattedMessage id="UserCard.instagram" values={{ instagram: publicData?.instagram }} /> */}
+        </H2>
+        {/* {publicData?.verified == true ? <span>{VerifiedIconLogo}</span> : <></>} */}
+        {publicData?.verified == true ? <img width="32px" height="32px" style={{marginRight:"20px"}} src={VerifiedIconLogo}/> : <></>}
+        {/* {hasBio ? <ExpandableBio className={css.desktopBio} bio={bio} /> : null} */}
+      </div>
+      <div style={{ display: 'flex', marginBottom: '2%' }}>
+        {!!publicData?.appleMusic ? (
+          <SocialLoginButton
+            type="button"
+            className={css.socialIcon}
+            onClick={() => openSocialNetWork('appleMusic')}
+          >
+            <span className={css.buttonIcon}>{ItunesLogo}</span>
+          </SocialLoginButton>
         ) : null}
-      </H2>
-      {showLinkToProfileSettingsPage ? (
-        <>
-          <NamedLink className={css.editLinkMobile} name="ProfileSettingsPage">
-            <FormattedMessage id="ProfilePage.editProfileLinkMobile" />
-          </NamedLink>
-          <NamedLink className={css.editLinkDesktop} name="ProfileSettingsPage">
-            <FormattedMessage id="ProfilePage.editProfileLinkDesktop" />
-          </NamedLink>
-        </>
-      ) : null}
+        {!!publicData?.spotify ? (
+          <SocialLoginButton
+            type="button"
+            className={css.socialIcon}
+            onClick={() => openSocialNetWork('spotify', baseUrlSocial.spotify)}
+          >
+            <span className={css.buttonIcon}>{SpotifyIconLogo}</span>
+          </SocialLoginButton>
+        ) : null}
+        {!!publicData?.bandcamp ? (
+          <SocialLoginButton
+            type="button"
+            className={css.socialIcon}
+            onClick={() => openSocialNetWork('bandcamp')}
+          >
+            <span className={css.buttonIcon}>{BandCampLogo}</span>
+          </SocialLoginButton>
+        ) : null}
+        {!!publicData?.soundcloud ? (
+          <SocialLoginButton
+            type="button"
+            className={css.socialIcon}
+            onClick={() => openSocialNetWork('soundcloud', baseUrlSocial.soundcloud)}
+          >
+            <span className={css.buttonIcon}>{SoundCloudLogo}</span>
+          </SocialLoginButton>
+        ) : null}
+        {!!publicData?.tidal ? (
+          <SocialLoginButton
+            type="button"
+            className={css.socialIcon}
+            onClick={() => openSocialNetWork('tidal', baseUrlSocial.tidal)}
+          >
+            <span className={css.buttonIcon}>{TidalIconLogo}</span>
+          </SocialLoginButton>
+        ) : null}
+      </div>
+
+      {publicData?.song?.Location && (
+        <div className={css.WaveAudio}>
+          <Waveform
+            url={publicData?.song?.Location}
+            height="40"
+            label={publicData?.song?.label}
+          ></Waveform>
+        </div>
+      )}
     </div>
   );
 };
@@ -168,31 +274,6 @@ export const DesktopReviews = props => {
   );
 };
 
-export const CustomUserFields = props => {
-  const { publicData, metadata, userFieldConfig } = props;
-
-  const shouldPickUserField = fieldConfig => fieldConfig?.showConfig?.displayInProfile !== false;
-  const propsForCustomFields =
-    pickCustomFieldProps(publicData, metadata, userFieldConfig, 'userType', shouldPickUserField) ||
-    [];
-
-  return (
-    <>
-      <SectionDetailsMaybe {...props} />
-      {propsForCustomFields.map(customFieldProps => {
-        const { schemaType, ...fieldProps } = customFieldProps;
-        return schemaType === SCHEMA_TYPE_MULTI_ENUM ? (
-          <SectionMultiEnumMaybe {...fieldProps} />
-        ) : schemaType === SCHEMA_TYPE_TEXT ? (
-          <SectionTextMaybe {...fieldProps} />
-        ) : schemaType === SCHEMA_TYPE_YOUTUBE ? (
-          <SectionYoutubeVideoMaybe {...fieldProps} />
-        ) : null;
-      })}
-    </>
-  );
-};
-
 export const MainContent = props => {
   const {
     userShowError,
@@ -202,25 +283,12 @@ export const MainContent = props => {
     queryListingsError,
     reviews,
     queryReviewsError,
-    publicData,
-    metadata,
-    userFieldConfig,
-    intl,
-    hideReviews,
+    viewport,
   } = props;
 
   const hasListings = listings.length > 0;
-  const hasMatchMedia = typeof window !== 'undefined' && window?.matchMedia;
-  const isMobileLayout = hasMatchMedia
-    ? window.matchMedia(`(max-width: ${MAX_MOBILE_SCREEN_WIDTH}px)`)?.matches
-    : true;
-
+  const isMobileLayout = viewport.width < MAX_MOBILE_SCREEN_WIDTH;
   const hasBio = !!bio;
-  const bioWithLinks = richText(bio, {
-    linkify: true,
-    longWordMinLength: MIN_LENGTH_FOR_LONG_WORDS,
-    longWordClass: css.longWord,
-  });
 
   const listingsContainerClasses = classNames(css.listingsContainer, {
     [css.withBioMissingAbove]: !hasBio,
@@ -235,20 +303,6 @@ export const MainContent = props => {
   }
   return (
     <div>
-      <H2 as="h1" className={css.desktopHeading}>
-        <FormattedMessage id="ProfilePage.desktopHeading" values={{ name: displayName }} />
-      </H2>
-      {hasBio ? <p className={css.bio}>{bioWithLinks}</p> : null}
-
-      {displayName ? (
-        <CustomUserFields
-          publicData={publicData}
-          metadata={metadata}
-          userFieldConfig={userFieldConfig}
-          intl={intl}
-        />
-      ) : null}
-
       {hasListings ? (
         <div className={listingsContainerClasses}>
           <H4 as="h2" className={css.listingsTitle}>
@@ -263,7 +317,7 @@ export const MainContent = props => {
           </ul>
         </div>
       ) : null}
-      {hideReviews ? null : isMobileLayout ? (
+      {isMobileLayout ? (
         <MobileReviews reviews={reviews} queryReviewsError={queryReviewsError} />
       ) : (
         <DesktopReviews reviews={reviews} queryReviewsError={queryReviewsError} />
@@ -272,101 +326,21 @@ export const MainContent = props => {
   );
 };
 
-export const ProfilePageComponent = props => {
+const ProfilePageComponent = props => {
   const config = useConfiguration();
-  const intl = useIntl();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const {
-    scrollingDisabled,
-    params: pathParams,
-    currentUser,
-    useCurrentUser,
-    userShowError,
-    user,
-    ...rest
-  } = props;
-  const isVariant = pathParams.variant?.length > 0;
-  const isPreview = isVariant && pathParams.variant === PROFILE_PAGE_PENDING_APPROVAL_VARIANT;
-
-  // Stripe's onboarding needs a business URL for each seller, but the profile page can be
-  // too empty for the provider at the time they are creating their first listing.
-  // To remedy the situation, we redirect Stripe's crawler to the landing page of the marketplace.
-  // TODO: When there's more content on the profile page, we should consider by-passing this redirection.
-  const searchParams = rest?.location?.search;
-  const isStorefront = searchParams
-    ? new URLSearchParams(searchParams)?.get('mode') === 'storefront'
-    : false;
-  if (isStorefront) {
-    return <NamedRedirect name="LandingPage" />;
-  }
-
-  const isCurrentUser = currentUser?.id && currentUser?.id?.uuid === pathParams.id;
-  const profileUser = useCurrentUser ? currentUser : user;
-  const { bio, displayName, publicData, metadata } = profileUser?.attributes?.profile || {};
-  const { userFields } = config.user;
-  const isPrivateMarketplace = config.accessControl.marketplace.private === true;
-  const isUnauthorizedUser = currentUser && !isUserAuthorized(currentUser);
-  const isUnauthorizedOnPrivateMarketplace = isPrivateMarketplace && isUnauthorizedUser;
-  const hasUserPendingApprovalError = isErrorUserPendingApproval(userShowError);
-  const hasNoViewingRightsUser = currentUser && !hasPermissionToViewData(currentUser);
-  const hasNoViewingRightsOnPrivateMarketplace = isPrivateMarketplace && hasNoViewingRightsUser;
-
-  const isDataLoaded = isPreview
-    ? currentUser != null || userShowError != null
-    : hasNoViewingRightsOnPrivateMarketplace
-    ? currentUser != null || userShowError != null
-    : user != null || userShowError != null;
+  const { scrollingDisabled, currentUser, userShowError, user, intl, ...rest } = props;
+  const ensuredCurrentUser = ensureCurrentUser(currentUser);
+  const profileUser = ensureUser(user);
+  const isCurrentUser =
+    ensuredCurrentUser.id && profileUser.id && ensuredCurrentUser.id.uuid === profileUser.id.uuid;
+  const { bio, displayName } = profileUser?.attributes?.profile || {};
 
   const schemaTitleVars = { name: displayName, marketplaceName: config.marketplaceName };
   const schemaTitle = intl.formatMessage({ id: 'ProfilePage.schemaTitle' }, schemaTitleVars);
 
-  if (!isDataLoaded) {
-    return null;
-  } else if (!isPreview && isNotFoundError(userShowError)) {
-    return <NotFoundPage staticContext={props.staticContext} />;
-  } else if (!isPreview && (isUnauthorizedOnPrivateMarketplace || hasUserPendingApprovalError)) {
-    return (
-      <NamedRedirect
-        name="NoAccessPage"
-        params={{ missingAccessRight: NO_ACCESS_PAGE_USER_PENDING_APPROVAL }}
-      />
-    );
-  } else if (
-    (!isPreview && hasNoViewingRightsOnPrivateMarketplace && !isCurrentUser) ||
-    isErrorNoViewingPermission(userShowError)
-  ) {
-    // Someone without viewing rights on a private marketplace is trying to
-    // view a profile page that is not their own – redirect to NoAccessPage
-    return (
-      <NamedRedirect
-        name="NoAccessPage"
-        params={{ missingAccessRight: NO_ACCESS_PAGE_VIEW_LISTINGS }}
-      />
-    );
-  } else if (!isPreview && isForbiddenError(userShowError)) {
-    // This can happen if private marketplace mode is active, but it's not reflected through asset yet.
-    return (
-      <NamedRedirect
-        name="SignupPage"
-        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
-      />
-    );
-  } else if (isPreview && mounted && !isCurrentUser) {
-    // Someone is manipulating the URL, redirect to current user's profile page.
-    return isCurrentUser === false ? (
-      <NamedRedirect name="ProfilePage" params={{ id: currentUser?.id?.uuid }} />
-    ) : null;
-  } else if ((isPreview || isPrivateMarketplace) && !mounted) {
-    // This preview of the profile page is not rendered on server-side
-    // and the first pass on client-side should render the same UI.
-    return null;
+  if (userShowError && userShowError.status === 404) {
+    return <NotFoundPage />;
   }
-  // This is rendering normal profile page (not preview for pending-approval)
   return (
     <Page
       scrollingDisabled={scrollingDisabled}
@@ -379,27 +353,14 @@ export const ProfilePageComponent = props => {
     >
       <LayoutSideNavigation
         sideNavClassName={css.aside}
-        topbar={<TopbarContainer />}
-        sideNav={
-          <AsideContent
-            user={profileUser}
-            showLinkToProfileSettingsPage={mounted && isCurrentUser}
-            displayName={displayName}
-          />
-        }
+        topbar={<TopbarContainer currentPage="ProfilePage" />}
+        // sideNav={
+        //   <AsideContent user={user} isCurrentUser={isCurrentUser} displayName={displayName} />
+        // }
         footer={<FooterContainer />}
       >
-        <MainContent
-          bio={bio}
-          displayName={displayName}
-          userShowError={userShowError}
-          publicData={publicData}
-          metadata={metadata}
-          userFieldConfig={userFields}
-          hideReviews={hasNoViewingRightsOnPrivateMarketplace}
-          intl={intl}
-          {...rest}
-        />
+        <AsideContent user={user} isCurrentUser={isCurrentUser} displayName={displayName} />
+        <MainContent bio={bio} displayName={displayName} userShowError={userShowError} {...rest} />
       </LayoutSideNavigation>
     </Page>
   );
@@ -417,13 +378,21 @@ ProfilePageComponent.defaultProps = {
 ProfilePageComponent.propTypes = {
   scrollingDisabled: bool.isRequired,
   currentUser: propTypes.currentUser,
-  useCurrentUser: bool.isRequired,
-  user: oneOfType([propTypes.user, propTypes.currentUser]),
+  user: propTypes.user,
   userShowError: propTypes.error,
   queryListingsError: propTypes.error,
-  listings: arrayOf(oneOfType([propTypes.listing, propTypes.ownListing])).isRequired,
+  listings: arrayOf(propTypes.listing).isRequired,
   reviews: arrayOf(propTypes.review),
   queryReviewsError: propTypes.error,
+
+  // form withViewport
+  viewport: shape({
+    width: number.isRequired,
+    height: number.isRequired,
+  }).isRequired,
+
+  // from injectIntl
+  intl: intlShape.isRequired,
 };
 
 const mapStateToProps = state => {
@@ -438,25 +407,23 @@ const mapStateToProps = state => {
   } = state.ProfilePage;
   const userMatches = getMarketplaceEntities(state, [{ type: 'user', id: userId }]);
   const user = userMatches.length === 1 ? userMatches[0] : null;
-
-  // Show currentUser's data if it's not approved yet
-  const isCurrentUser = userId?.uuid === currentUser?.id?.uuid;
-  const useCurrentUser =
-    isCurrentUser && !(isUserAuthorized(currentUser) && hasPermissionToViewData(currentUser));
-
+  const listings = getMarketplaceEntities(state, userListingRefs);
   return {
     scrollingDisabled: isScrollingDisabled(state),
     currentUser,
-    useCurrentUser,
     user,
     userShowError,
     queryListingsError,
-    listings: getMarketplaceEntities(state, userListingRefs),
+    listings,
     reviews,
     queryReviewsError,
   };
 };
 
-const ProfilePage = compose(connect(mapStateToProps))(ProfilePageComponent);
+const ProfilePage = compose(
+  connect(mapStateToProps),
+  withViewport,
+  injectIntl
+)(ProfilePageComponent);
 
 export default ProfilePage;

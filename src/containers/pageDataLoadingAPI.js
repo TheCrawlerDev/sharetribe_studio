@@ -4,8 +4,12 @@
 import { loadData as AuthenticationPageLoader } from './AuthenticationPage/AuthenticationPage.duck';
 import { loadData as LandingPageLoader } from './LandingPage/LandingPage.duck';
 import { setInitialValues as CheckoutPageInitialValues } from './CheckoutPage/CheckoutPage.duck';
+import { loadData as BlogPageLoader } from './BlogPage/BlogPage.duck';
 import { loadData as CMSPageLoader } from './CMSPage/CMSPage.duck';
 import { loadData as ContactDetailsPageLoader } from './ContactDetailsPage/ContactDetailsPage.duck';
+import { loadData as IntegrateCalendarsPageLoader } from './IntegrateCalendarsPage/IntegrateCalendarsPage.duck';
+import { loadData as JoinDiscordPageLoader } from './JoinDiscordPage/JoinDiscordPage.duck';
+import { loadData as ShareProfileLoader } from './ShareProfilePage/ShareProfilePage.duck';
 import { loadData as EditListingPageLoader } from './EditListingPage/EditListingPage.duck';
 import { loadData as EmailVerificationPageLoader } from './EmailVerificationPage/EmailVerificationPage.duck';
 import { loadData as InboxPageLoader } from './InboxPage/InboxPage.duck';
@@ -27,6 +31,9 @@ const getPageDataLoadingAPI = () => {
     AuthenticationPage: {
       loadData: AuthenticationPageLoader,
     },
+    BlogPage: {
+      loadData: BlogPageLoader
+    },
     LandingPage: {
       loadData: LandingPageLoader,
     },
@@ -47,6 +54,15 @@ const getPageDataLoadingAPI = () => {
     },
     InboxPage: {
       loadData: InboxPageLoader,
+    },
+    IntegrateCalendarsPage: {
+      loadData: IntegrateCalendarsPageLoader,
+    },
+    JoinDiscordPage: {
+      loadData: JoinDiscordPageLoader,
+    },
+    ShareProfilePage: {
+      loadData: ShareProfileLoader,
     },
     ListingPage: {
       loadData: ListingPageLoader,

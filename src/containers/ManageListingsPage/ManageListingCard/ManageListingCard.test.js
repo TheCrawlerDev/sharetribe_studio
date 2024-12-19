@@ -2,11 +2,7 @@ import React from 'react';
 import '@testing-library/jest-dom';
 
 import { types as sdkTypes } from '../../../util/sdkLoader';
-import {
-  getHostedConfiguration,
-  renderWithProviders as render,
-  testingLibrary,
-} from '../../../util/testHelpers';
+import { renderWithProviders as render, testingLibrary } from '../../../util/testHelpers';
 import { createOwnListing, createStock, fakeIntl } from '../../../util/testData';
 
 import { ManageListingCardComponent } from './ManageListingCard';
@@ -16,135 +12,7 @@ const { screen, waitFor } = testingLibrary;
 const { Money } = sdkTypes;
 const noop = () => null;
 
-const getConfig = listingTypes => {
-  const hostedConfig = getHostedConfiguration();
-  return {
-    ...hostedConfig,
-    listingTypes: {
-      listingTypes,
-    },
-  };
-};
-
 describe('ManageListingCard', () => {
-  it('Inquiry (inquiry): no price', () => {
-    const listing = createOwnListing('listing-day', {
-      title: 'the listing',
-      description: 'Lorem ipsum',
-      price: new Money(1000, 'USD'),
-      availabilityPlan: null,
-
-      publicData: {
-        listingType: 'free-inquiry',
-        transactionProcessAlias: 'default-inquiry/release-1',
-        unitType: 'inquiry',
-        amenities: ['dog_1'],
-        location: {
-          address: 'Main Street 123',
-          building: 'A 1',
-        },
-      },
-    });
-
-    const config = getConfig([
-      {
-        id: 'free-inquiry',
-        transactionProcess: {
-          name: 'default-inquiry',
-          alias: 'default-inquiry/release-1',
-        },
-        unitType: 'inquiry',
-        defaultListingFields: {
-          price: false,
-        },
-      },
-    ]);
-
-    const tree = render(
-      <ManageListingCardComponent
-        history={{ push: noop }}
-        listing={listing}
-        intl={fakeIntl}
-        isMenuOpen={false}
-        onCloseListing={noop}
-        onOpenListing={noop}
-        onToggleMenu={noop}
-        hasClosingError={false}
-        hasOpeningError={false}
-        availabilityEnabled={true}
-      />,
-      { config }
-    );
-
-    expect(tree.getByText('ResponsiveImage.noImage')).toBeInTheDocument();
-    expect(tree.getByText('ManageListingCard.closeListing')).toBeInTheDocument();
-    expect(tree.queryByText('ManageListingCard.priceNotSet')).not.toBeInTheDocument();
-    expect(tree.queryByText('10')).not.toBeInTheDocument(); //fakeIntl
-    expect(tree.getByText(/the Listing/i)).toBeInTheDocument();
-    expect(tree.getByText('ManageListingCard.editListing')).toBeInTheDocument();
-    expect(tree.queryByText('ManageListingCard.manageAvailability')).not.toBeInTheDocument();
-    expect(tree.queryByText('ManageListingCard.manageStock')).not.toBeInTheDocument();
-  });
-
-  it('Inquiry (inquiry): with price', () => {
-    const listing = createOwnListing('listing-day', {
-      title: 'the listing',
-      description: 'Lorem ipsum',
-      price: new Money(1000, 'USD'),
-      availabilityPlan: null,
-
-      publicData: {
-        listingType: 'free-inquiry',
-        transactionProcessAlias: 'default-inquiry/release-1',
-        unitType: 'inquiry',
-        amenities: ['dog_1'],
-        location: {
-          address: 'Main Street 123',
-          building: 'A 1',
-        },
-      },
-    });
-
-    const config = getConfig([
-      {
-        id: 'free-inquiry',
-        transactionProcess: {
-          name: 'default-inquiry',
-          alias: 'default-inquiry/release-1',
-        },
-        unitType: 'inquiry',
-        defaultListingFields: {
-          price: true,
-        },
-      },
-    ]);
-
-    const tree = render(
-      <ManageListingCardComponent
-        history={{ push: noop }}
-        listing={listing}
-        intl={fakeIntl}
-        isMenuOpen={false}
-        onCloseListing={noop}
-        onOpenListing={noop}
-        onToggleMenu={noop}
-        hasClosingError={false}
-        hasOpeningError={false}
-        availabilityEnabled={true}
-      />,
-      { config }
-    );
-
-    expect(tree.getByText('ResponsiveImage.noImage')).toBeInTheDocument();
-    expect(tree.getByText('ManageListingCard.closeListing')).toBeInTheDocument();
-    expect(tree.queryByText('ManageListingCard.priceNotSet')).not.toBeInTheDocument();
-    expect(tree.queryByText('10')).toBeInTheDocument(); //fakeIntl
-    expect(tree.getByText(/the Listing/i)).toBeInTheDocument();
-    expect(tree.getByText('ManageListingCard.editListing')).toBeInTheDocument();
-    expect(tree.queryByText('ManageListingCard.manageAvailability')).not.toBeInTheDocument();
-    expect(tree.queryByText('ManageListingCard.manageStock')).not.toBeInTheDocument();
-  });
-
   it('Booking (day): normal', () => {
     const listing = createOwnListing('listing-day', {
       title: 'the listing',
@@ -436,7 +304,7 @@ describe('ManageListingCard', () => {
         availabilityPlan: null,
 
         publicData: {
-          listingType: 'sell-bicycles-item',
+          listingType: 'sel-bicycles-item',
           transactionProcessAlias: 'default-purchase/release-1',
           unitType: 'item',
           amenities: ['dog_1'],
@@ -450,18 +318,6 @@ describe('ManageListingCard', () => {
         currentStock: createStock('stock-id', { quantity: 5 }),
       }
     );
-    const config = getConfig([
-      {
-        id: 'sell-bicycles-item',
-        label: 'Sell products',
-        transactionProcess: {
-          alias: 'default-purchase/release-1',
-          name: 'default-purchase',
-        },
-        unitType: 'item',
-        stockType: 'multipleItems',
-      },
-    ]);
 
     const tree = render(
       <ManageListingCardComponent
@@ -475,8 +331,7 @@ describe('ManageListingCard', () => {
         hasClosingError={false}
         hasOpeningError={false}
         availabilityEnabled={true}
-      />,
-      { config }
+      />
     );
 
     expect(tree.getByText('ResponsiveImage.noImage')).toBeInTheDocument();
@@ -512,19 +367,6 @@ describe('ManageListingCard', () => {
       }
     );
 
-    const config = getConfig([
-      {
-        id: 'sell-bicycles-item',
-        label: 'Sell products',
-        transactionProcess: {
-          alias: 'default-purchase/release-1',
-          name: 'default-purchase',
-        },
-        unitType: 'item',
-        stockType: 'multipleItems',
-      },
-    ]);
-
     const tree = render(
       <ManageListingCardComponent
         history={{ push: noop }}
@@ -537,8 +379,7 @@ describe('ManageListingCard', () => {
         hasClosingError={false}
         hasOpeningError={false}
         availabilityEnabled={true}
-      />,
-      { config }
+      />
     );
 
     expect(tree.getByText('ResponsiveImage.noImage')).toBeInTheDocument();
@@ -564,7 +405,7 @@ describe('ManageListingCard', () => {
         availabilityPlan: null,
         state: 'draft',
         publicData: {
-          listingType: 'sell-bicycles-item',
+          listingType: 'sel-bicycles-item',
           transactionProcessAlias: 'default-purchase/release-1',
           unitType: 'item',
           amenities: ['dog_1'],
@@ -579,19 +420,6 @@ describe('ManageListingCard', () => {
       }
     );
 
-    const config = getConfig([
-      {
-        id: 'sell-bicycles-item',
-        label: 'Sell products',
-        transactionProcess: {
-          alias: 'default-purchase/release-1',
-          name: 'default-purchase',
-        },
-        unitType: 'item',
-        stockType: 'multipleItems',
-      },
-    ]);
-
     const tree = render(
       <ManageListingCardComponent
         history={{ push: noop }}
@@ -604,8 +432,7 @@ describe('ManageListingCard', () => {
         hasClosingError={false}
         hasOpeningError={false}
         availabilityEnabled={true}
-      />,
-      { config }
+      />
     );
 
     expect(tree.getByText('ResponsiveImage.noImage')).toBeInTheDocument();
@@ -643,18 +470,6 @@ describe('ManageListingCard', () => {
         currentStock: createStock('stock-id', { quantity: 5 }),
       }
     );
-    const config = getConfig([
-      {
-        id: 'sell-bicycles-item',
-        label: 'Sell products',
-        transactionProcess: {
-          alias: 'default-purchase/release-1',
-          name: 'default-purchase',
-        },
-        unitType: 'item',
-        stockType: 'multipleItems',
-      },
-    ]);
 
     const tree = render(
       <ManageListingCardComponent
@@ -668,8 +483,7 @@ describe('ManageListingCard', () => {
         hasClosingError={false}
         hasOpeningError={false}
         availabilityEnabled={true}
-      />,
-      { config }
+      />
     );
 
     expect(tree.getByText('ResponsiveImage.noImage')).toBeInTheDocument();
@@ -698,18 +512,6 @@ describe('ManageListingCard', () => {
         },
       },
     });
-    const config = getConfig([
-      {
-        id: 'sell-bicycles-item',
-        label: 'Sell products',
-        transactionProcess: {
-          alias: 'default-purchase/release-1',
-          name: 'default-purchase',
-        },
-        unitType: 'item',
-        stockType: 'multipleItems',
-      },
-    ]);
 
     const tree = render(
       <ManageListingCardComponent
@@ -723,8 +525,7 @@ describe('ManageListingCard', () => {
         hasClosingError={false}
         hasOpeningError={false}
         availabilityEnabled={true}
-      />,
-      { config }
+      />
     );
 
     expect(tree.getByText('ResponsiveImage.noImage')).toBeInTheDocument();
@@ -735,83 +536,11 @@ describe('ManageListingCard', () => {
     expect(tree.getByText('ManageListingCard.setPriceAndStock')).toBeInTheDocument();
   });
 
-  it('Purchase (item): oneItem', () => {
-    const listing = createOwnListing('listing-day', {
-      title: 'the listing',
-      description: 'Lorem ipsum',
-      price: new Money(1000, 'USD'),
-      availabilityPlan: null,
-
-      publicData: {
-        listingType: 'sell-bicycles-item',
-        transactionProcessAlias: 'default-purchase/release-1',
-        unitType: 'item',
-        amenities: ['dog_1'],
-        location: {
-          address: 'Main Street 123',
-          building: 'A 1',
-        },
-      },
-    });
-    const config = getConfig([
-      {
-        id: 'sell-bicycles-item',
-        label: 'Sell products',
-        transactionProcess: {
-          alias: 'default-purchase/release-1',
-          name: 'default-purchase',
-        },
-        unitType: 'item',
-        stockType: 'oneItem',
-      },
-    ]);
-
-    const tree = render(
-      <ManageListingCardComponent
-        history={{ push: noop }}
-        listing={listing}
-        intl={fakeIntl}
-        isMenuOpen={false}
-        onCloseListing={noop}
-        onOpenListing={noop}
-        onToggleMenu={noop}
-        hasClosingError={false}
-        hasOpeningError={false}
-        availabilityEnabled={true}
-      />,
-      { config }
-    );
-
-    expect(tree.getByText('ResponsiveImage.noImage')).toBeInTheDocument();
-    expect(tree.getByText('ManageListingCard.closeListing')).toBeInTheDocument();
-    expect(tree.getByText('10')).toBeInTheDocument(); //fakeIntl
-    expect(tree.getByText(/the Listing/i)).toBeInTheDocument();
-    expect(tree.getByText('ManageListingCard.editListing')).toBeInTheDocument();
-    expect(tree.queryByText('ManageListingCard.setPriceAndStock')).not.toBeInTheDocument();
-  });
-
   it('matches snapshot (purchase)', () => {
-    const config = getConfig([
-      {
-        id: 'sell-bicycles-item',
-        label: 'Sell products',
-        transactionProcess: {
-          alias: 'default-purchase/release-1',
-          name: 'default-purchase',
-        },
-        unitType: 'item',
-        stockType: 'multipleItems',
-      },
-    ]);
     const tree = render(
       <ManageListingCardComponent
         history={{ push: noop }}
-        listing={createOwnListing('listing1', {
-          publicData: {
-            listingType: 'product-selling',
-            transactionProcessAlias: 'default-purchase/release-1',
-          },
-        })}
+        listing={createOwnListing('listing1', { publicData: { listingType: 'sell-bikes' } })}
         intl={fakeIntl}
         isMenuOpen={false}
         onCloseListing={noop}
@@ -820,8 +549,7 @@ describe('ManageListingCard', () => {
         hasClosingError={false}
         hasOpeningError={false}
         availabilityEnabled={true}
-      />,
-      { config }
+      />
     );
     expect(tree.asFragment().firstChild).toMatchSnapshot();
   });

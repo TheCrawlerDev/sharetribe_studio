@@ -17,7 +17,7 @@ const GOOGLE_MAPS_SCRIPT_ID = 'GoogleMapsApi';
  */
 export const IncludeScripts = props => {
   const { marketplaceRootURL: rootURL, maps, analytics } = props?.config || {};
-  const { googleAnalyticsId, plausibleDomains } = analytics;
+  const googleAnalyticsId = analytics.googleAnalyticsId;
 
   const { mapProvider, googleMapsAPIKey, mapboxAccessToken } = maps || {};
   const isGoogleMapsInUse = mapProvider === 'googleMaps';
@@ -37,14 +37,11 @@ export const IncludeScripts = props => {
     mapLibraries.push(
       <script key="mapboxSDK" src={`${rootURL}/static/scripts/mapbox/mapbox-sdk.min.js`}></script>
     );
-    // License information for v3.7.0 of the mapbox-gl-js library:
-    // https://github.com/mapbox/mapbox-gl-js/blob/v3.7.0/LICENSE.txt
-
     // Add CSS for Mapbox map
     mapLibraries.push(
       <link
         key="mapbox_GL_CSS"
-        href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css"
+        href="https://api.mapbox.com/mapbox-gl-js/v1.0.0/mapbox-gl.css"
         rel="stylesheet"
         crossOrigin
       />
@@ -54,7 +51,7 @@ export const IncludeScripts = props => {
       <script
         id={MAPBOX_SCRIPT_ID}
         key="mapbox_GL_JS"
-        src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"
+        src="https://api.mapbox.com/mapbox-gl-js/v1.0.0/mapbox-gl.js"
         crossOrigin
       ></script>
     );
@@ -85,29 +82,18 @@ export const IncludeScripts = props => {
       ></script>
     );
 
-    if (typeof window !== 'undefined') {
-      window.dataLayer = window.dataLayer || [];
-      // Ensure that gtag function is found from window scope
-      window.gtag = function gtag() {
-        dataLayer.push(arguments);
-      };
-      gtag('js', new Date());
-      gtag('config', googleAnalyticsId, {
-        cookie_flags: 'SameSite=None;Secure',
-      });
-    }
-  }
-
-  if (plausibleDomains) {
-    // If plausibleDomains is not an empty string, include their script too.
     analyticsLibraries.push(
-      <script
-        key="plausible"
-        defer
-        src="https://plausible.io/js/script.js"
-        data-domain={plausibleDomains}
-        crossOrigin
-      ></script>
+      <script key="gtag dataLayer">
+        {`
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+      
+        gtag('config', '${googleAnalyticsId}', {
+          cookie_flags: 'SameSite=None;Secure',
+        });
+        `}
+      </script>
     );
   }
 

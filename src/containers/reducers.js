@@ -13,6 +13,9 @@ import PasswordChangePage from './PasswordChangePage/PasswordChangePage.duck';
 import PasswordRecoveryPage from './PasswordRecoveryPage/PasswordRecoveryPage.duck';
 import PasswordResetPage from './PasswordResetPage/PasswordResetPage.duck';
 import PaymentMethodsPage from './PaymentMethodsPage/PaymentMethodsPage.duck';
+import IntegrateCalendarsPage from './IntegrateCalendarsPage/IntegrateCalendarsPage.duck';
+import JoinDiscordPage from './JoinDiscordPage/JoinDiscordPage.duck';
+import ShareProfilePage from './ShareProfilePage/ShareProfilePage.duck';
 import ProfilePage from './ProfilePage/ProfilePage.duck';
 import ProfileSettingsPage from './ProfileSettingsPage/ProfileSettingsPage.duck';
 import SearchPage from './SearchPage/SearchPage.duck';
@@ -30,6 +33,9 @@ export {
   PasswordRecoveryPage,
   PasswordResetPage,
   PaymentMethodsPage,
+  IntegrateCalendarsPage,
+  JoinDiscordPage,
+  ShareProfilePage,
   ProfilePage,
   ProfileSettingsPage,
   SearchPage,

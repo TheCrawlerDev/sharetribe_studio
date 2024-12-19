@@ -1,5 +1,6 @@
 import React from 'react';
 import '@testing-library/jest-dom';
+import 'react-dates/initialize';
 
 import { types as sdkTypes } from '../../util/sdkLoader';
 import { createListing, createStock, createUser, fakeIntl } from '../../util/testData';
@@ -55,39 +56,36 @@ const listingTypes = [
       alias: 'default-purchase/release-1',
     },
     unitType: 'item',
-    stockType: 'multipleItems',
   },
 ];
 
 const listingFields = [
   {
-    key: 'cat',
+    key: 'category',
     scope: 'public',
-    listingTypeConfig: {
-      limitToListingTypeIds: true,
-      listingTypeIds: ['sell-bicycles'],
-    },
+    includeForListingTypes: ['sell-bicycles'],
     schemaType: 'enum',
     enumOptions: [{ option: 'cat_1', label: 'Cat 1' }, { option: 'cat_2', label: 'Cat 2' }],
     filterConfig: {
       indexForSearch: true,
-      label: 'Cat',
+      label: 'Category',
       group: 'primary',
     },
     showConfig: {
-      label: 'Cat',
+      label: 'Category',
     },
     saveConfig: {
-      label: 'Cat',
+      label: 'Category',
     },
   },
   {
     key: 'amenities',
     scope: 'public',
-    listingTypeConfig: {
-      limitToListingTypeIds: true,
-      listingTypeIds: ['rent-bicycles-daily', 'rent-bicycles-nightly', 'rent-bicycles-hourly'],
-    },
+    includeForListingTypes: [
+      'rent-bicycles-daily',
+      'rent-bicycles-nightly',
+      'rent-bicycles-hourly',
+    ],
     schemaType: 'multi-enum',
     enumOptions: [{ option: 'dog_1', label: 'Dog 1' }, { option: 'dog_2', label: 'Dog 2' }],
     filterConfig: {
@@ -205,18 +203,21 @@ const commonProps = {
 };
 
 describe('OrderPanel', () => {
+  const originalWarn = console.warn.bind(console.warn);
+  beforeEach(() => {
+    console.warn = msg =>
+      !(
+        msg.toString().includes('componentWillReceiveProps') ||
+        msg.toString().includes('componentWillUpdate')
+      ) && originalWarn(msg);
+  });
+
+  afterAll(() => {
+    console.warn = originalWarn;
+  });
+
   const config = getConfig();
   const routeConfiguration = getRouteConfiguration(config.layout);
-  const stockTypeMaybe = stockType => (stockType ? { stockType } : {});
-  const validListingTypes = config.listingTypes.listingTypes.map(({ id, ...rest }) => ({
-    listingType: id,
-    transactionType: {
-      process: rest?.transactionProcess?.name,
-      alias: rest?.transactionProcess?.alias,
-      unitType: rest.unitType,
-    },
-    ...stockTypeMaybe(rest?.stockType),
-  }));
 
   it('Booking: daily', async () => {
     const listing = createListing('listing-day', {
@@ -249,7 +250,7 @@ describe('OrderPanel', () => {
       },
     });
 
-    const props = { ...commonProps, listing, isOwnListing: false, validListingTypes };
+    const props = { ...commonProps, listing, isOwnListing: false };
     const { getByText, queryAllByText } = render(<OrderPanel {...props} />, {
       config,
       routeConfiguration,
@@ -298,7 +299,7 @@ describe('OrderPanel', () => {
       },
     });
 
-    const props = { ...commonProps, listing, isOwnListing: false, validListingTypes };
+    const props = { ...commonProps, listing, isOwnListing: false };
     const { getByText, queryAllByText } = render(<OrderPanel {...props} />, {
       config,
       routeConfiguration,
@@ -347,7 +348,7 @@ describe('OrderPanel', () => {
       },
     });
 
-    const props = { ...commonProps, listing, isOwnListing: false, validListingTypes };
+    const props = { ...commonProps, listing, isOwnListing: false };
     const { getByText, queryAllByText } = render(<OrderPanel {...props} />, {
       config,
       routeConfiguration,
@@ -392,11 +393,14 @@ describe('OrderPanel', () => {
       }
     );
 
-    const props = { ...commonProps, listing, isOwnListing: false, validListingTypes };
-    const { getByText, queryAllByText } = render(<OrderPanel {...props} />, {
-      config,
-      routeConfiguration,
-    });
+    const props = { ...commonProps, listing, isOwnListing: false };
+    const { getByPlaceholderText, getByText, getAllByText, queryAllByText } = render(
+      <OrderPanel {...props} />,
+      {
+        config,
+        routeConfiguration,
+      }
+    );
 
     await waitFor(() => {
       expect(queryAllByText('title!')).toHaveLength(2);
@@ -437,11 +441,14 @@ describe('OrderPanel', () => {
       }
     );
 
-    const props = { ...commonProps, listing, isOwnListing: false, validListingTypes };
-    const { getByText, queryAllByText } = render(<OrderPanel {...props} />, {
-      config,
-      routeConfiguration,
-    });
+    const props = { ...commonProps, listing, isOwnListing: false };
+    const { getByPlaceholderText, getByText, getAllByText, queryAllByText } = render(
+      <OrderPanel {...props} />,
+      {
+        config,
+        routeConfiguration,
+      }
+    );
 
     await waitFor(() => {
       expect(queryAllByText('title!')).toHaveLength(2);
@@ -450,40 +457,6 @@ describe('OrderPanel', () => {
       expect(queryAllByText('OrderPanel.author')).toHaveLength(2);
       expect(getByText('ProductOrderForm.noDeliveryMethodSet')).toBeInTheDocument();
       expect(getByText('OrderPanel.ctaButtonMessagePurchase')).toBeInTheDocument();
-    });
-  });
-
-  it('Inquiry: inquiry ', async () => {
-    const listing = createListing('listing-inquiry', {
-      title: 'the listing',
-      description: 'Lorem ipsum',
-      price: new Money(1000, 'USD'),
-
-      publicData: {
-        listingType: 'inquiry',
-        transactionProcessAlias: 'default-inquiry/release-1',
-        unitType: 'inquiry',
-        amenities: ['dog_1'],
-        location: {
-          address: 'Main Street 123',
-          building: 'A 1',
-        },
-      },
-    });
-
-    const props = { ...commonProps, listing, isOwnListing: false, validListingTypes };
-    const { getByText, queryAllByText } = render(<OrderPanel {...props} />, {
-      config,
-      routeConfiguration,
-    });
-
-    await waitFor(() => {
-      expect(queryAllByText('title!')).toHaveLength(2);
-      expect(queryAllByText('$10.00')).toHaveLength(2);
-      expect(queryAllByText('OrderPanel.perUnit')).toHaveLength(2);
-      expect(queryAllByText('OrderPanel.author')).toHaveLength(2);
-      expect(getByText('InquiryWithoutPaymentForm.ctaButton')).toBeInTheDocument();
-      expect(getByText('OrderPanel.ctaButtonMessageInquiry')).toBeInTheDocument();
     });
   });
 });

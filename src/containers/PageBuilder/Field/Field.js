@@ -1,16 +1,5 @@
 import React from 'react';
-import {
-  exact,
-  func,
-  node,
-  number,
-  object,
-  objectOf,
-  oneOf,
-  oneOfType,
-  shape,
-  string,
-} from 'prop-types';
+import { exact, func, node, number, objectOf, oneOf, oneOfType, shape, string } from 'prop-types';
 
 // Primitive components that are actually used for rendering field data
 // These are essentially calling the index.js
@@ -27,6 +16,7 @@ import { CustomAppearance } from '../Primitives/CustomAppearance';
 import { YoutubeEmbed } from '../Primitives/YoutubeEmbed';
 
 import renderMarkdown from '../markdownProcessor';
+import { CustomizedContainer, isCustomized } from '../../CustomizedContainers';
 
 import {
   hasContent,
@@ -198,15 +188,21 @@ const isEmpty = obj => Object.keys(obj).length === 0;
 // Generic field component that picks a specific UI component based on 'fieldType'
 const Field = props => {
   const { data, options: fieldOptions, ...propsFromParent } = props;
-
   // Check the data and pick valid props only
   const validPropsFromData = validProps(data, fieldOptions);
+  if(!!data?.fieldType && data?.fieldType == "image"){
+    validPropsFromData.href = data.href;
+  }
   const hasValidProps = validPropsFromData && !isEmpty(validPropsFromData);
 
   // Config contains component, pickValidProps, and potentially also options.
   // E.g. markdown has options.components to override default elements
   const config = getFieldConfig(data, defaultFieldComponents, fieldOptions);
   const { component: Component, options = {} } = config || {};
+  
+  if(isCustomized(props)){
+    return <CustomizedContainer {...props}/>;
+  }
 
   // Render the correct field component
   if (Component && hasValidProps) {
@@ -259,7 +255,6 @@ const propTypeCustomAppearance = shape({
   backgroundColor: string,
   textColor: string,
   backgroundImage: propTypeImageAsset,
-  backgroundImageOverlay: object,
 });
 
 const propTypeYoutube = shape({

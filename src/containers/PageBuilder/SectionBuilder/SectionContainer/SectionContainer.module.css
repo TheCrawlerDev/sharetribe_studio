@@ -8,21 +8,13 @@
   position: relative;
 
   &:nth-of-type(odd) {
-    background-color: var(--colorWhite);
-  }
-
-  &[id] {
-    scroll-margin-top: var(--topbarHeight);
-    @media (--viewportMedium) {
-      scroll-margin-top: var(--topbarHeightDesktop);
-    }
+    background-color: var(--colorBlack);
   }
 }
 
 .sectionContent {
   padding: 32px 0;
   position: relative;
-  word-break: break-word;
 
   @media (--viewportMedium) {
     padding: 64px 0;

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { number, string } from 'prop-types';
+import React from 'react';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 
 import css from './IconSpinner.module.css';
@@ -39,38 +39,16 @@ const IconSpinner = props => {
   );
 };
 
-const DelayedSpinner = props => {
-  const [showSpinner, setShowSpinner] = useState(false);
-  const { delay = 600, ...restOfProps } = props;
-
-  useEffect(() => {
-    const timer = window?.setTimeout(() => setShowSpinner(true), delay);
-    return () => window?.clearTimeout(timer);
-  });
-
-  return showSpinner ? <IconSpinner {...restOfProps} /> : null;
-};
-
-DelayedSpinner.propTypes = {
-  delay: number.isRequired,
-};
-
-const Spinner = props => {
-  const { delay, ...restOfProps } = props;
-
-  return delay != null ? <DelayedSpinner {...props} /> : <IconSpinner {...restOfProps} />;
-};
-
-Spinner.defaultProps = {
+IconSpinner.defaultProps = {
   rootClassName: null,
   className: null,
-  delay: null,
 };
 
-Spinner.propTypes = {
+const { string } = PropTypes;
+
+IconSpinner.propTypes = {
   rootClassName: string,
   className: string,
-  delay: number,
 };
 
-export default Spinner;
+export default IconSpinner;

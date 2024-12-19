@@ -1,6 +1,6 @@
 import React from 'react';
 import { FormattedMessage, intlShape } from '../../util/reactIntl';
-import { formatMoney } from '../../util/currency';
+import { formatMoney, formatNumberMoney, convertMoneyToNumber } from '../../util/currency';
 import { LINE_ITEM_NIGHT, LINE_ITEM_DAY, propTypes, LINE_ITEM_HOUR } from '../../util/types';
 
 import css from './OrderBreakdown.module.css';
@@ -24,8 +24,16 @@ const LineItemBasePriceMaybe = props => {
   const unitPurchase = lineItems.find(item => item.code === code && !item.reversal);
 
   const quantity = unitPurchase ? unitPurchase.quantity.toString() : null;
-  const unitPrice = unitPurchase ? formatMoney(intl, unitPurchase.unitPrice) : null;
-  const total = unitPurchase ? formatMoney(intl, unitPurchase.lineTotal) : null;
+  const unitPrice = unitPurchase
+    ? formatMoney(intl, unitPurchase?.studioOnlyPrice ?? unitPurchase.unitPrice)
+    : null;
+  let total = unitPurchase ? formatMoney(intl, unitPurchase.lineTotal) : null;
+  if (!!unitPurchase?.studioOnlyPrice) {
+    total = formatNumberMoney(
+      intl,
+      convertMoneyToNumber(unitPurchase?.studioOnlyPrice) * parseInt(quantity)
+    );
+  }
 
   return quantity && total ? (
     <div className={css.lineItem}>

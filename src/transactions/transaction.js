@@ -1,21 +1,17 @@
 import * as log from '../util/log';
+import { ensureTransaction } from '../util/data';
 import * as purchaseProcess from './transactionProcessPurchase';
 import * as bookingProcess from './transactionProcessBooking';
-import * as inquiryProcess from './transactionProcessInquiry';
 
 // Supported unit types
-// Note: These are passed to translations/microcopy in certain cases.
-//       Therefore, they can't contain wordbreaks like '-' or space ' '
 export const ITEM = 'item';
 export const DAY = 'day';
 export const NIGHT = 'night';
 export const HOUR = 'hour';
-export const INQUIRY = 'inquiry';
 
 // Then names of supported processes
 export const PURCHASE_PROCESS_NAME = 'default-purchase';
 export const BOOKING_PROCESS_NAME = 'default-booking';
-export const INQUIRY_PROCESS_NAME = 'default-inquiry';
 
 /**
  * A process should export:
@@ -42,12 +38,6 @@ const PROCESSES = [
     alias: `${BOOKING_PROCESS_NAME}/release-1`,
     process: bookingProcess,
     unitTypes: [DAY, NIGHT, HOUR],
-  },
-  {
-    name: INQUIRY_PROCESS_NAME,
-    alias: `${INQUIRY_PROCESS_NAME}/release-1`,
-    process: inquiryProcess,
-    unitTypes: [INQUIRY],
   },
 ];
 
@@ -214,8 +204,6 @@ export const resolveLatestProcessName = processName => {
     case 'flex-booking-default-process':
     case BOOKING_PROCESS_NAME:
       return BOOKING_PROCESS_NAME;
-    case INQUIRY_PROCESS_NAME:
-      return INQUIRY_PROCESS_NAME;
     default:
       return processName;
   }
@@ -259,27 +247,6 @@ export const getAllTransitionsForEveryProcess = () => {
   return PROCESSES.reduce((accTransitions, processInfo) => {
     return [...accTransitions, ...Object.values(processInfo.process.transitions)];
   }, []);
-};
-
-/**
- * Check if the process is purchase process
- *
- * @param {String} processName
- */
-export const isPurchaseProcess = processName => {
-  const latestProcessName = resolveLatestProcessName(processName);
-  const processInfo = PROCESSES.find(process => process.name === latestProcessName);
-  return [PURCHASE_PROCESS_NAME].includes(processInfo?.name);
-};
-
-/**
- * Check if the process/alias points to a booking process
- *
- * @param {String} processAlias
- */
-export const isPurchaseProcessAlias = processAlias => {
-  const processName = processAlias ? processAlias.split('/')[0] : null;
-  return processAlias ? isPurchaseProcess(processName) : false;
 };
 
 /**
@@ -362,8 +329,9 @@ export const TX_TRANSITION_ACTORS = [
  * @param {Object} transaction Transaction entity from Marketplace API
  */
 export const getUserTxRole = (currentUserId, transaction) => {
-  const customer = transaction?.customer;
-  if (currentUserId && currentUserId.uuid && transaction?.id && customer.id) {
+  const tx = ensureTransaction(transaction);
+  const customer = tx.customer;
+  if (currentUserId && currentUserId.uuid && tx.id && customer.id) {
     // user can be either customer or provider
     return currentUserId.uuid === customer.id.uuid
       ? TX_TRANSITION_ACTOR_CUSTOMER

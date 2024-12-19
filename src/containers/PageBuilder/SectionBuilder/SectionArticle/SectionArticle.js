@@ -56,7 +56,6 @@ const SectionArticle = props => {
         >
           <BlockBuilder
             blocks={blocks}
-            sectionId={sectionId}
             ctaButtonClass={defaultClasses.ctaButton}
             options={options}
           />

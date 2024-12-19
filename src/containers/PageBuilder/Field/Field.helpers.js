@@ -47,7 +47,7 @@ export const exposeSocialMediaProps = data => {
   const hasCorrectProps = typeof url === 'string' && url.length > 0;
   const cleanUrl = hasCorrectProps ? sanitizeUrl(url) : null;
   const validPlatform = supportedPlatforms.includes(platform) ? platform : null;
-  return cleanUrl ? { platform: validPlatform, href: cleanUrl } : {};
+  return cleanUrl ? { children: validPlatform, href: cleanUrl } : {};
 };
 
 const getValidSanitizedImage = image => {
@@ -100,22 +100,16 @@ const getValidSanitizedImage = image => {
 export const exposeImageProps = data => {
   // Note: data includes also "aspectRatio" key (and "fieldType"),
   //       but image refs can rely on actual image variants
-  const { alt, image, link } = data;
+  const { alt, image } = data;
   const { type } = image || {};
 
   if (type !== 'imageAsset') {
     return {};
   }
-  const { href, fieldType } = link || {};
-
-  const hasCorrectProps = typeof href === 'string' && href.length > 0;
-  const cleanUrl = hasCorrectProps ? sanitizeUrl(href) : null;
-  const linkData = cleanUrl && fieldType !== 'none' ? { href: cleanUrl, fieldType } : null;
 
   const alternativeText = typeof alt === 'string' ? alt : '🖼️';
   const sanitizedImage = getValidSanitizedImage(image);
-
-  return sanitizedImage ? { alt: alternativeText, image: sanitizedImage, link: linkData } : {};
+  return sanitizedImage ? { alt: alternativeText, image: sanitizedImage } : {};
 };
 
 /**
@@ -139,7 +133,7 @@ const exposeColorValue = color => {
  * @returns object containing valid data.
  */
 export const exposeCustomAppearanceProps = data => {
-  const { backgroundImage, backgroundImageOverlay, backgroundColor, textColor, alt } = data;
+  const { backgroundImage, backgroundColor, textColor, alt } = data;
   const { type } = backgroundImage || {};
 
   if (!!type && type !== 'imageAsset') {
@@ -157,25 +151,9 @@ export const exposeCustomAppearanceProps = data => {
   const sanitizedImage = getValidSanitizedImage(backgroundImage);
   const backgroundImageMaybe = sanitizedImage ? { backgroundImage: sanitizedImage, alt } : {};
 
-  // On top of the background image there could be an overlay that mixes in some color (e.g. black)
-  // with the given opacity.
-  // At this point this is used as a shader to add contrast between foreground text and background.
-  const { preset, color: overlayColor, opacity: overlayOpacity } = backgroundImageOverlay || {};
-  const hasBackgroundOverlay = typeof preset === 'string' && preset !== 'none';
-  const backgroundImageOverlayMaybe = hasBackgroundOverlay
-    ? {
-        backgroundImageOverlay: {
-          preset,
-          color: exposeColorValue(overlayColor),
-          opacity: typeof overlayOpacity === 'number' ? overlayOpacity : 1,
-        },
-      }
-    : {};
-
   return {
     ...backgroundImageMaybe,
     ...backgroundColorMaybe,
-    ...backgroundImageOverlayMaybe,
     ...textColorMaybe,
   };
 };

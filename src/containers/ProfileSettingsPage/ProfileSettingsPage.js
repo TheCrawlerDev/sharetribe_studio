@@ -6,13 +6,7 @@ import { connect } from 'react-redux';
 import { useConfiguration } from '../../context/configurationContext';
 import { FormattedMessage, injectIntl, intlShape } from '../../util/reactIntl';
 import { propTypes } from '../../util/types';
-import { PROFILE_PAGE_PENDING_APPROVAL_VARIANT } from '../../util/urlHelpers';
 import { ensureCurrentUser } from '../../util/data';
-import {
-  initialValuesForUserFields,
-  isUserAuthorized,
-  pickUserFieldsData,
-} from '../../util/userHelpers';
 import { isScrollingDisabled } from '../../ducks/ui.duck';
 
 import { H3, Page, UserNav, NamedLink, LayoutSingleColumn } from '../../components';
@@ -32,23 +26,6 @@ const onImageUploadHandler = (values, fn) => {
   }
 };
 
-const ViewProfileLink = props => {
-  const { userUUID, isUnauthorizedUser } = props;
-  return userUUID && isUnauthorizedUser ? (
-    <NamedLink
-      className={css.profileLink}
-      name="ProfilePageVariant"
-      params={{ id: userUUID, variant: PROFILE_PAGE_PENDING_APPROVAL_VARIANT }}
-    >
-      <FormattedMessage id="ProfileSettingsPage.viewProfileLink" />
-    </NamedLink>
-  ) : userUUID ? (
-    <NamedLink className={css.profileLink} name="ProfilePage" params={{ id: userUUID }}>
-      <FormattedMessage id="ProfileSettingsPage.viewProfileLink" />
-    </NamedLink>
-  ) : null;
-};
-
 export const ProfileSettingsPageComponent = props => {
   const config = useConfiguration();
   const {
@@ -64,14 +41,30 @@ export const ProfileSettingsPageComponent = props => {
     intl,
   } = props;
 
-  const { userFields, userTypes = [] } = config.user;
+  const changeProfileSong = (user, song) => {
+    const profile = user.attributes.profile;
+    onUpdateProfile({ publicData: { ...profile.publicData, song: song } });
+  };
 
-  const handleSubmit = (values, userType) => {
-    const { firstName, lastName, displayName, bio: rawBio, ...rest } = values;
+  const handleSubmit = values => {
+    const {
+      firstName,
+      lastName,
+      bio: rawBio,
+      spotify,
+      appleMusic,
+      soundcloud,
+      tidal,
+      bandcamp,
+    } = values;
 
-    const displayNameMaybe = displayName
-      ? { displayName: displayName.trim() }
-      : { displayName: null };
+    const socialNetworks = {
+      spotify: !!spotify ? spotify.trim() : '',
+      appleMusic: !!appleMusic ? appleMusic.trim() : '',
+      soundcloud: !!soundcloud ? soundcloud.trim() : '',
+      tidal: !!tidal ? tidal.trim() : '',
+      bandcamp: !!bandcamp ? bandcamp.trim() : '',
+    };
 
     // Ensure that the optional bio is a string
     const bio = rawBio || '';
@@ -79,49 +72,29 @@ export const ProfileSettingsPageComponent = props => {
     const profile = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      ...displayNameMaybe,
       bio,
-      publicData: {
-        ...pickUserFieldsData(rest, 'public', userType, userFields),
-      },
-      protectedData: {
-        ...pickUserFieldsData(rest, 'protected', userType, userFields),
-      },
-      privateData: {
-        ...pickUserFieldsData(rest, 'private', userType, userFields),
-      },
     };
+    const publicData = props.currentUser.attributes.profile.publicData;
     const uploadedImage = props.image;
 
     // Update profileImage only if file system has been accessed
     const updatedValues =
       uploadedImage && uploadedImage.imageId && uploadedImage.file
-        ? { ...profile, profileImageId: uploadedImage.imageId }
-        : profile;
+        ? {
+            ...profile,
+            profileImageId: uploadedImage.imageId,
+            publicData: socialNetworks,
+          }
+        : { ...profile, publicData: socialNetworks };
 
     onUpdateProfile(updatedValues);
   };
 
   const user = ensureCurrentUser(currentUser);
-  const {
-    firstName,
-    lastName,
-    displayName,
-    bio,
-    publicData,
-    protectedData,
-    privateData,
-  } = user?.attributes.profile;
-  // I.e. the status is active, not pending-approval or banned
-  const isUnauthorizedUser = currentUser && !isUserAuthorized(currentUser);
-
-  const { userType } = publicData || {};
+  const { firstName, lastName, bio, publicData } = user.attributes.profile;
   const profileImageId = user.profileImage ? user.profileImage.id : null;
   const profileImage = image || { imageId: profileImageId };
-  const userTypeConfig = userTypes.find(config => config.userType === userType);
-  const isDisplayNameIncluded = userTypeConfig?.defaultUserFields?.displayName !== false;
-  // ProfileSettingsForm decides if it's allowed to show the input field.
-  const displayNameMaybe = isDisplayNameIncluded && displayName ? { displayName } : {};
+  const { spotify, appleMusic, soundcloud, tidal, bandcamp } = publicData ?? {};
 
   const profileSettingsForm = user.id ? (
     <ProfileSettingsForm
@@ -130,12 +103,13 @@ export const ProfileSettingsPageComponent = props => {
       initialValues={{
         firstName,
         lastName,
-        ...displayNameMaybe,
         bio,
         profileImage: user.profileImage,
-        ...initialValuesForUserFields(publicData, 'public', userType, userFields),
-        ...initialValuesForUserFields(protectedData, 'protected', userType, userFields),
-        ...initialValuesForUserFields(privateData, 'private', userType, userFields),
+        spotify,
+        appleMusic,
+        soundcloud,
+        tidal,
+        bandcamp,
       }}
       profileImage={profileImage}
       onImageUpload={e => onImageUploadHandler(e, onImageUpload)}
@@ -143,10 +117,9 @@ export const ProfileSettingsPageComponent = props => {
       updateInProgress={updateInProgress}
       uploadImageError={uploadImageError}
       updateProfileError={updateProfileError}
-      onSubmit={values => handleSubmit(values, userType)}
+      onSubmit={handleSubmit}
+      onChangeProfileSong={(song) => changeProfileSong(currentUser,song)}
       marketplaceName={config.marketplaceName}
-      userFields={userFields}
-      userTypeConfig={userTypeConfig}
     />
   ) : null;
 
@@ -157,7 +130,7 @@ export const ProfileSettingsPageComponent = props => {
       <LayoutSingleColumn
         topbar={
           <>
-            <TopbarContainer />
+            <TopbarContainer currentPage="ProfileSettingsPage" />
             <UserNav currentPage="ProfileSettingsPage" />
           </>
         }
@@ -168,8 +141,15 @@ export const ProfileSettingsPageComponent = props => {
             <H3 as="h1" className={css.heading}>
               <FormattedMessage id="ProfileSettingsPage.heading" />
             </H3>
-
-            <ViewProfileLink userUUID={user?.id?.uuid} isUnauthorizedUser={isUnauthorizedUser} />
+            {user.id ? (
+              <NamedLink
+                className={css.profileLink}
+                name="ProfilePage"
+                params={{ id: user.id.uuid }}
+              >
+                <FormattedMessage id="ProfileSettingsPage.viewProfileLink" />
+              </NamedLink>
+            ) : null}
           </div>
           {profileSettingsForm}
         </div>

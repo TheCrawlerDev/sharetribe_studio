@@ -527,6 +527,7 @@ class LocationAutocompleteInputImplementation extends Component {
         </div>
         <input
           className={inputClass}
+          style={{backgroundColor: 'black'}}
           type="search"
           autoComplete="off"
           autoFocus={autoFocus}
@@ -544,7 +545,6 @@ class LocationAutocompleteInputImplementation extends Component {
               inputRef(node);
             }
           }}
-          title={search}
           data-testid="location-search"
         />
         {renderPredictions ? (

@@ -1,6 +1,7 @@
+import { blogApiByAlias, blogApiByVersion } from '../util/api';
 import { denormalizeAssetData } from '../util/data';
-import * as log from '../util/log';
 import { storableError } from '../util/errors';
+import * as log from '../util/log';
 
 // Pick paths from entries of appCdnAssets config (in configDefault.js)
 const pickHostedConfigPaths = (assetEntries, excludeAssetNames) => {
@@ -205,6 +206,71 @@ export const fetchPageAssets = (assets, hasFallback) => (dispatch, getState, sdk
   const fetchAssets = version
     ? assetPath => sdk.assetByVersion({ path: assetPath, version })
     : assetPath => sdk.assetByAlias({ path: assetPath, alias: 'latest' });
+
+  const assetEntries = Object.entries(assets);
+  const sdkAssets = assetEntries.map(([key, assetPath]) => fetchAssets(assetPath));
+
+  return Promise.all(sdkAssets)
+    .then(responses => {
+      const hostedAssetsState = getState()?.hostedAssets;
+      // These are fixed page assets that the app expects to be there. Keep fixed assets always in store.
+      const { termsOfService, privacyPolicy, landingPage, ...rest } =
+        hostedAssetsState?.pageAssetsData || {};
+      const fixedPageAssets = { termsOfService, privacyPolicy, landingPage };
+      // Avoid race condition, which might happen if automatic redirections try to fetch different assets
+      // This could happen, when logged-in user clicks some signup link (AuthenticationPage fetches terms&privacy, LandingPage fetches its asset)
+      const pickLatestPageAssetData = hostedAssetsState?.currentPageAssets.reduce(
+        (collected, pa) => {
+          const cmsPageData = rest[pa];
+          return cmsPageData ? { ...collected, [pa]: cmsPageData } : collected;
+        },
+        {}
+      );
+      // Returned value looks like this for a single asset with name: "about-page":
+      // {
+      //    "about-page": {
+      //      path: 'content/about-page.json', // an example path in Asset Delivery API
+      //      data, // translation key & value pairs
+      //    },
+      //    // etc.
+      // }
+      // Note: we'll pick fixed page assets and the current page asset always.
+      const pageAssets = assetEntries.reduce(
+        (collectedAssets, assetEntry, i) => {
+          const [name, path] = assetEntry;
+          const assetData = denormalizeAssetData(responses[i].data);
+          return { ...collectedAssets, [name]: { path, data: assetData } };
+        },
+        { ...fixedPageAssets, ...pickLatestPageAssetData }
+      );
+      dispatch(pageAssetsSuccess(pageAssets));
+      return pageAssets;
+    })
+    .catch(e => {
+      // If there's a fallback UI, something went wrong when fetching the "known asset" like landing-page.json.
+      // If there's no fallback UI created, we assume that the page URL was mistyped for 404 errors.
+      if (hasFallback || (!hasFallback && e.status === 404)) {
+        log.error(e, 'page-asset-fetch-failed', { assets, version });
+      }
+      dispatch(pageAssetsError(storableError(e)));
+    });
+};
+
+export const fetchPageBlogAssets = (assets, hasFallback) => (dispatch, getState, sdk) => {
+  const version = getState()?.hostedAssets?.version;
+  if (typeof version === 'undefined') {
+    throw new Error(
+      'App-wide assets were not fetched first. Asset version missing from Redux store.'
+    );
+  }
+
+  dispatch(pageAssetsRequested(Object.keys(assets)));
+
+  // If version is given fetch assets by the version,
+  // otherwise default to "latest" alias
+  const fetchAssets = version
+    ? assetPath => blogApiByVersion(assetPath, version)
+    : assetPath => blogApiByAlias(assetPath);
 
   const assetEntries = Object.entries(assets);
   const sdkAssets = assetEntries.map(([key, assetPath]) => fetchAssets(assetPath));

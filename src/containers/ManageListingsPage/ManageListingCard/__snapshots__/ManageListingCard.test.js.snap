@@ -89,6 +89,7 @@ exports[`ManageListingCard matches snapshot (purchase) 1`] = `
       >
         <div
           class="root menu cardIsOpen"
+          tabindex="0"
         >
           <button
             class="root menuLabel"
@@ -211,6 +212,17 @@ exports[`ManageListingCard matches snapshot (purchase) 1`] = `
         <span>
           ManageListingCard.editListing
         </span>
+      </a>
+      <span
+        class="manageLinksSeparator"
+      >
+         • 
+      </span>
+      <a
+        class="manageLink"
+        href="/l/listing1-title/listing1/edit/pricing-and-stock"
+      >
+        ManageListingCard.setPriceAndStock
       </a>
     </div>
   </div>

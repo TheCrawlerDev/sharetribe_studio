@@ -74,7 +74,6 @@ const SectionColumns = props => {
           <BlockBuilder
             ctaButtonClass={defaultClasses.ctaButton}
             blocks={blocks}
-            sectionId={sectionId}
             responsiveImageSizes={getResponsiveImageSizes(numColumns)}
             options={options}
           />

@@ -176,16 +176,11 @@ const parseDefaultAreasFromProps = props => {
  * @return LayoutComposer that expects children to be a function.
  */
 const LayoutComposer = React.forwardRef((props, ref) => {
-  const [mounted, setMounted] = useState(false);
   const [currentAreas, setAreas] = useState(parseDefaultAreasFromProps(props));
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
     let resizeListeners = [];
-    if (mounted && responsiveAreas) {
+    if (responsiveAreas) {
       resizeListeners = handleResponsiveAreasOnBrowser(responsiveAreas, setAreas);
     }
 
@@ -195,7 +190,7 @@ const LayoutComposer = React.forwardRef((props, ref) => {
         mediaQueryList.removeEventListener('change', resizeListener);
       });
     };
-  }, [mounted]);
+  }, []);
 
   const { components, gridTemplateAreas } = currentAreas;
   const { children, style = {}, areas, responsiveAreas, display, as, ...otherProps } = props;

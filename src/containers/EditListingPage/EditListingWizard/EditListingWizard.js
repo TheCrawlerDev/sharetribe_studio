@@ -6,18 +6,6 @@ import classNames from 'classnames';
 import { useConfiguration } from '../../../context/configurationContext';
 import { useRouteConfiguration } from '../../../context/routeConfigurationContext';
 import { FormattedMessage, intlShape, useIntl } from '../../../util/reactIntl';
-import {
-  displayDeliveryPickup,
-  displayDeliveryShipping,
-  displayLocation,
-  displayPrice,
-  requirePayoutDetails,
-} from '../../../util/configHelpers';
-import {
-  LISTING_PAGE_PARAM_TYPE_DRAFT,
-  LISTING_PAGE_PARAM_TYPE_NEW,
-  LISTING_PAGE_PARAM_TYPES,
-} from '../../../util/urlHelpers';
 import { createResourceLocatorString } from '../../../util/routes';
 import { withViewport } from '../../../util/uiHelpers';
 import {
@@ -29,16 +17,12 @@ import {
   propTypes,
 } from '../../../util/types';
 import {
-  isFieldForCategory,
-  isFieldForListingType,
-  pickCategoryFields,
-} from '../../../util/fieldHelpers';
+  LISTING_PAGE_PARAM_TYPE_DRAFT,
+  LISTING_PAGE_PARAM_TYPE_NEW,
+  LISTING_PAGE_PARAM_TYPES,
+} from '../../../util/urlHelpers';
 import { ensureCurrentUser, ensureListing } from '../../../util/data';
-import {
-  INQUIRY_PROCESS_NAME,
-  isBookingProcess,
-  isPurchaseProcess,
-} from '../../../transactions/transaction';
+import { BOOKING_PROCESS_NAME, isBookingProcess } from '../../../transactions/transaction';
 
 // Import shared components
 import {
@@ -59,51 +43,24 @@ import EditListingWizardTab, {
   LOCATION,
   AVAILABILITY,
   PHOTOS,
+  ADD_ONS,
 } from './EditListingWizardTab';
 import css from './EditListingWizard.module.css';
 
 // You can reorder these panels.
 // Note 1: You need to change save button translations for new listing flow
 // Note 2: Ensure that draft listing is created after the first panel
-//         and listing publishing happens after last panel.
-// Note 3: The first tab creates a draft listing and title is mandatory attribute for it.
-//         Details tab asks for "title" and is therefore the first tab in the wizard flow.
+// and listing publishing happens after last panel.
 const TABS_DETAILS_ONLY = [DETAILS];
 const TABS_PRODUCT = [DETAILS, PRICING_AND_STOCK, DELIVERY, PHOTOS];
-const TABS_BOOKING = [DETAILS, LOCATION, PRICING, AVAILABILITY, PHOTOS];
-const TABS_INQUIRY = [DETAILS, LOCATION, PRICING, PHOTOS];
-const TABS_ALL = [...TABS_PRODUCT, ...TABS_BOOKING, ...TABS_INQUIRY];
+const TABS_BOOKING = [DETAILS, LOCATION, PRICING, AVAILABILITY, PHOTOS, ADD_ONS];
+const TABS_ALL = [...TABS_PRODUCT, ...TABS_BOOKING];
 
 // Tabs are horizontal in small screens
 const MAX_HORIZONTAL_NAV_SCREEN_WIDTH = 1023;
 
 const STRIPE_ONBOARDING_RETURN_URL_SUCCESS = 'success';
 const STRIPE_ONBOARDING_RETURN_URL_FAILURE = 'failure';
-
-// Pick only allowed tabs from the given list
-const getTabs = (processTabs, disallowedTabs) => {
-  return disallowedTabs.length > 0
-    ? processTabs.filter(tab => !disallowedTabs.includes(tab))
-    : processTabs;
-};
-// Pick only allowed booking tabs (location could be omitted)
-const tabsForBookingProcess = (processTabs, listingTypeConfig) => {
-  const disallowedTabs = !displayLocation(listingTypeConfig) ? [LOCATION] : [];
-  return getTabs(processTabs, disallowedTabs);
-};
-// Pick only allowed purchase tabs (delivery could be omitted)
-const tabsForPurchaseProcess = (processTabs, listingTypeConfig) => {
-  const isDeliveryDisabled =
-    !displayDeliveryPickup(listingTypeConfig) && !displayDeliveryShipping(listingTypeConfig);
-  const disallowedTabs = isDeliveryDisabled ? [DELIVERY] : [];
-  return getTabs(processTabs, disallowedTabs);
-};
-// Pick only allowed inquiry tabs (location and pricing could be omitted)
-const tabsForInquiryProcess = (processTabs, listingTypeConfig) => {
-  const locationMaybe = !displayLocation(listingTypeConfig) ? [LOCATION] : [];
-  const priceMaybe = !displayPrice(listingTypeConfig) ? [PRICING] : [];
-  return getTabs(processTabs, [...locationMaybe, ...priceMaybe]);
-};
 
 /**
  * Return translations for wizard tab: label and submit button.
@@ -113,7 +70,7 @@ const tabsForInquiryProcess = (processTabs, listingTypeConfig) => {
  * @param {boolean} isNewListingFlow
  * @param {string} processName
  */
-const tabLabelAndSubmit = (intl, tab, isNewListingFlow, isPriceDisabled, processName) => {
+const tabLabelAndSubmit = (intl, tab, isNewListingFlow, processName) => {
   const processNameString = isNewListingFlow ? `${processName}.` : '';
   const newOrEdit = isNewListingFlow ? 'new' : 'edit';
 
@@ -133,16 +90,16 @@ const tabLabelAndSubmit = (intl, tab, isNewListingFlow, isPriceDisabled, process
     submitButtonKey = `EditListingWizard.${processNameString}${newOrEdit}.saveDelivery`;
   } else if (tab === LOCATION) {
     labelKey = 'EditListingWizard.tabLabelLocation';
-    submitButtonKey =
-      isPriceDisabled && isNewListingFlow
-        ? `EditListingWizard.${processNameString}${newOrEdit}.saveLocationNoPricingTab`
-        : `EditListingWizard.${processNameString}${newOrEdit}.saveLocation`;
+    submitButtonKey = `EditListingWizard.${processNameString}${newOrEdit}.saveLocation`;
   } else if (tab === AVAILABILITY) {
     labelKey = 'EditListingWizard.tabLabelAvailability';
     submitButtonKey = `EditListingWizard.${processNameString}${newOrEdit}.saveAvailability`;
   } else if (tab === PHOTOS) {
     labelKey = 'EditListingWizard.tabLabelPhotos';
     submitButtonKey = `EditListingWizard.${processNameString}${newOrEdit}.savePhotos`;
+  } else if (tab === ADD_ONS) {
+    labelKey = 'EditListingWizard.tabLabelAddOns';
+    submitButtonKey = `EditListingWizard.${processNameString}${newOrEdit}.saveAddOns`;
   }
 
   return {
@@ -160,7 +117,13 @@ const tabLabelAndSubmit = (intl, tab, isNewListingFlow, isPriceDisabled, process
  */
 const hasValidListingFieldsInExtendedData = (publicData, privateData, config) => {
   const isValidField = (fieldConfig, fieldData) => {
-    const { key, schemaType, enumOptions = [], saveConfig = {} } = fieldConfig;
+    const {
+      key,
+      includeForListingTypes,
+      schemaType,
+      enumOptions = [],
+      saveConfig = {},
+    } = fieldConfig;
 
     const schemaOptionKeys = enumOptions.map(o => `${o.option}`);
     const hasValidEnumValue = optionData => {
@@ -170,15 +133,9 @@ const hasValidListingFieldsInExtendedData = (publicData, privateData, config) =>
       return savedOptions.every(optionData => schemaOptionKeys.includes(optionData));
     };
 
-    const categoryKey = config.categoryConfiguration.key;
-    const categoryOptions = config.categoryConfiguration.categories;
-    const categoriesObj = pickCategoryFields(publicData, categoryKey, 1, categoryOptions);
-    const currentCategories = Object.values(categoriesObj);
-
-    const isTargetListingType = isFieldForListingType(publicData?.listingType, fieldConfig);
-    const isTargetCategory = isFieldForCategory(currentCategories, fieldConfig);
-    const isRequired = !!saveConfig.isRequired && isTargetListingType && isTargetCategory;
-
+    const isRequired =
+      !!saveConfig.isRequired &&
+      (includeForListingTypes == null || includeForListingTypes.includes(publicData?.listingType));
     if (isRequired) {
       const savedListingField = fieldData[key];
       return schemaType === SCHEMA_TYPE_ENUM
@@ -246,6 +203,8 @@ const tabCompleted = (tab, listing, config) => {
       return !!availabilityPlan;
     case PHOTOS:
       return images && images.length > 0;
+    case ADD_ONS:
+      return true;
     default:
       return false;
   }
@@ -325,21 +284,6 @@ const RedirectToStripe = ({ redirectFn }) => {
   return <FormattedMessage id="EditListingWizard.redirectingToStripe" />;
 };
 
-const getListingTypeConfig = (listing, selectedListingType, config) => {
-  const existingListingType = listing?.attributes?.publicData?.listingType;
-  const validListingTypes = config.listing.listingTypes;
-  const hasOnlyOneListingType = validListingTypes?.length === 1;
-
-  const listingTypeConfig = existingListingType
-    ? validListingTypes.find(conf => conf.listingType === existingListingType)
-    : selectedListingType
-    ? validListingTypes.find(conf => conf.listingType === selectedListingType.listingType)
-    : hasOnlyOneListingType
-    ? validListingTypes[0]
-    : null;
-  return listingTypeConfig;
-};
-
 // Create a new or edit listing through EditListingWizard
 class EditListingWizard extends Component {
   constructor(props) {
@@ -351,7 +295,7 @@ class EditListingWizard extends Component {
     this.state = {
       draftId: null,
       showPayoutDetails: false,
-      selectedListingType: null,
+      transactionProcessAlias: null,
     };
     this.handleCreateFlowTabScrolling = this.handleCreateFlowTabScrolling.bind(this);
     this.handlePublishListing = this.handlePublishListing.bind(this);
@@ -371,28 +315,19 @@ class EditListingWizard extends Component {
   }
 
   handlePublishListing(id) {
-    const { onPublishListingDraft, currentUser, stripeAccount, listing, config } = this.props;
-    const processName = listing?.attributes?.publicData?.transactionProcessAlias.split('/')[0];
-    const isInquiryProcess = processName === INQUIRY_PROCESS_NAME;
+    const { onPublishListingDraft, currentUser, stripeAccount } = this.props;
 
-    const listingTypeConfig = getListingTypeConfig(listing, this.state.selectedListingType, config);
-    // Through hosted configs (listingTypeConfig.defaultListingFields?.payoutDetails),
-    // it's possible to publish listing without payout details set by provider.
-    // Customers can't purchase these listings - but it gives operator opportunity to discuss with providers who fail to do so.
-    const isPayoutDetailsRequired = requirePayoutDetails(listingTypeConfig);
+    const stripeConnected =
+      currentUser && currentUser.stripeAccount && !!currentUser.stripeAccount.id;
 
-    const stripeConnected = !!currentUser?.stripeAccount?.id;
     const stripeAccountData = stripeConnected ? getStripeAccountData(stripeAccount) : null;
-    const stripeRequirementsMissing =
+
+    const requirementsMissing =
       stripeAccount &&
       (hasRequirements(stripeAccountData, 'past_due') ||
         hasRequirements(stripeAccountData, 'currently_due'));
 
-    if (
-      isInquiryProcess ||
-      !isPayoutDetailsRequired ||
-      (stripeConnected && !stripeRequirementsMissing)
-    ) {
+    if (stripeConnected && !requirementsMissing) {
       onPublishListingDraft(id);
     } else {
       this.setState({
@@ -444,44 +379,30 @@ class EditListingWizard extends Component {
     const classes = classNames(rootClasses, className);
     const currentListing = ensureListing(listing);
     const savedProcessAlias = currentListing.attributes?.publicData?.transactionProcessAlias;
-    const transactionProcessAlias =
-      savedProcessAlias || this.state.selectedListingType?.transactionProcessAlias;
+    const transactionProcessAlias = savedProcessAlias || this.state.transactionProcessAlias;
 
     // NOTE: If the listing has invalid configuration in place,
     // the listing is considered deprecated and we don't allow user to modify the listing anymore.
     // Instead, operator should do that through Console or Integration API.
     const validListingTypes = config.listing.listingTypes;
-    const listingTypeConfig = getListingTypeConfig(
-      currentListing,
-      this.state.selectedListingType,
-      config
-    );
     const existingListingType = currentListing.attributes?.publicData?.listingType;
-    const invalidExistingListingType = existingListingType && !listingTypeConfig;
-    // TODO: displayPrice aka config.defaultListingFields?.price with false value is only available with inquiry process
-    //       if it's enabled with other processes, translations for "new" flow needs to be updated.
-    const isPriceDisabled = !displayPrice(listingTypeConfig);
+    const invalidExistingListingType =
+      existingListingType &&
+      !validListingTypes.find(config => config.listingType === existingListingType);
 
-    // Transaction process alias is used here, because the process defineds whether the listing is supported
-    // I.e. old listings might not be supported through listing types, but client app might still support those processes.
     const processName = transactionProcessAlias
       ? transactionProcessAlias.split('/')[0]
       : validListingTypes.length === 1
       ? validListingTypes[0].transactionType.process
-      : INQUIRY_PROCESS_NAME;
-
-    const hasListingTypeSelected =
-      existingListingType || this.state.selectedListingType || validListingTypes.length === 1;
+      : BOOKING_PROCESS_NAME;
 
     // For oudated draft listing, we don't show other tabs but the "details"
     const tabs =
-      isNewListingFlow && (invalidExistingListingType || !hasListingTypeSelected)
+      invalidExistingListingType && isNewListingFlow
         ? TABS_DETAILS_ONLY
         : isBookingProcess(processName)
-        ? tabsForBookingProcess(TABS_BOOKING, listingTypeConfig)
-        : isPurchaseProcess(processName)
-        ? tabsForPurchaseProcess(TABS_PRODUCT, listingTypeConfig)
-        : tabsForInquiryProcess(TABS_INQUIRY, listingTypeConfig);
+        ? TABS_BOOKING
+        : TABS_PRODUCT;
 
     // Check if wizard tab is active / linkable.
     // When creating a new listing, we don't allow users to access next tab until the current one is completed.
@@ -554,14 +475,6 @@ class EditListingWizard extends Component {
         hasRequirements(stripeAccountData, 'currently_due'));
 
     const savedCountry = stripeAccountData ? stripeAccountData.country : null;
-    const savedAccountType = stripeAccountData ? stripeAccountData.business_type : null;
-
-    const { marketplaceName } = config;
-    const payoutModalInfo = stripeAccountData ? (
-      <FormattedMessage id="EditListingWizard.payoutModalInfo" values={{ marketplaceName }} />
-    ) : (
-      <FormattedMessage id="EditListingWizard.payoutModalInfoNew" values={{ marketplaceName }} />
-    );
 
     const handleGetStripeConnectAccountLink = handleGetStripeConnectAccountLinkFn(
       onGetStripeConnectAccountLink,
@@ -589,13 +502,7 @@ class EditListingWizard extends Component {
           tabRootClassName={css.tab}
         >
           {tabs.map(tab => {
-            const tabTranslations = tabLabelAndSubmit(
-              intl,
-              tab,
-              isNewListingFlow,
-              isPriceDisabled,
-              processName
-            );
+            const tabTranslations = tabLabelAndSubmit(intl, tab, isNewListingFlow, processName);
             return (
               <EditListingWizardTab
                 {...rest}
@@ -614,7 +521,9 @@ class EditListingWizard extends Component {
                 handleCreateFlowTabScrolling={this.handleCreateFlowTabScrolling}
                 handlePublishListing={this.handlePublishListing}
                 fetchInProgress={fetchInProgress}
-                onListingTypeChange={selectedListingType => this.setState({ selectedListingType })}
+                onProcessChange={transactionProcessAlias => {
+                  this.setState({ transactionProcessAlias });
+                }}
                 onManageDisableScrolling={onManageDisableScrolling}
                 config={config}
                 routeConfiguration={routeConfiguration}
@@ -643,15 +552,16 @@ class EditListingWizard extends Component {
               </p>
             ) : (
               <>
-                <p className={css.modalMessage}>{payoutModalInfo}</p>
+                <p className={css.modalMessage}>
+                  <FormattedMessage id="EditListingWizard.payoutModalInfo" />
+                </p>
                 <StripeConnectAccountForm
                   disabled={formDisabled}
                   inProgress={payoutDetailsSaveInProgress}
                   ready={payoutDetailsSaved}
-                  currentUser={currentUser}
+                  currentUser={ensuredCurrentUser}
                   stripeBankAccountLastDigits={getBankAccountLast4Digits(stripeAccountData)}
                   savedCountry={savedCountry}
-                  savedAccountType={savedAccountType}
                   submitButtonText={intl.formatMessage({
                     id: 'StripePayoutPage.submitButtonText',
                   })}
@@ -660,6 +570,7 @@ class EditListingWizard extends Component {
                   stripeAccountLinkError={stripeAccountLinkError}
                   onChange={onPayoutDetailsChange}
                   onSubmit={rest.onPayoutDetailsSubmit}
+                  onGetStripeConnectAccountLink={handleGetStripeConnectAccountLink}
                   stripeConnected={stripeConnected}
                 >
                   {stripeConnected && !returnedAbnormallyFromStripe && showVerificationNeeded ? (

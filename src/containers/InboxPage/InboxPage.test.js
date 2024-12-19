@@ -35,7 +35,6 @@ const noop = () => null;
 
 const bookingTransitions = getProcess('default-booking')?.transitions;
 const purchaseTransitions = getProcess('default-purchase')?.transitions;
-const inquiryTransitions = getProcess('default-inquiry')?.transitions;
 
 describe('InboxPage', () => {
   const provider = createUser('provider');
@@ -275,54 +274,6 @@ describe('InboxPage', () => {
     });
   });
 
-  describe('InboxItem: default-inquiry process with "inquiry" item', () => {
-    const listingInquiryItem = createListing('listing1', {
-      publicData: {
-        listingType: 'inquire-bikes',
-        transactionProcessAlias: 'default-inquiry',
-        unitType: 'inquiry',
-      },
-    });
-
-    const inquiries = Object.keys(inquiryTransitions).map(trKey => {
-      const lineItemsMaybe = trKey !== 'INQUIRE_WITHOUT_PAYMENT' ? lineItems : [];
-      return {
-        tr: inquiryTransitions[trKey],
-        tx: createTransaction({
-          id: `id-inquiry-${trKey}-sale`,
-          customer,
-          provider,
-          listing: listingInquiryItem,
-          processName: 'default-inquiry',
-          lastTransition: inquiryTransitions[trKey],
-          lastTransitionedAt: new Date(Date.UTC(2022, 0, 15)),
-          lineItems: lineItemsMaybe,
-        }),
-      };
-    });
-
-    test.each(inquiries)('check inquiry: $tr', ({ tr, tx }) => {
-      const transactionRole = TX_TRANSITION_ACTOR_PROVIDER;
-      const stateDataOrder = getStateData({
-        transaction: tx,
-        transactionRole,
-      });
-
-      const tree = render(
-        <InboxItem
-          tx={tx}
-          transactionRole={transactionRole}
-          intl={fakeIntl}
-          stateData={stateDataOrder}
-          isBooking={false}
-        />
-      );
-      expect(tree.asFragment().firstChild).toMatchSnapshot();
-      const quantityFound = screen.queryAllByText('InboxPage.quantity');
-      expect(quantityFound).toHaveLength(0);
-    });
-  });
-
   describe('InboxItem: default-purchase process with "item"', () => {
     const listingItem = createListing('listing1', {
       publicData: {
@@ -525,6 +476,7 @@ describe('InboxPage', () => {
           isBooking={true}
         />
       );
+      expect(tree.asFragment().firstChild).toMatchSnapshot();
 
       const quantityFound = screen.queryAllByText('Jun 14 – 16');
       const expected = tr !== 'transition/inquire' ? 1 : 0;

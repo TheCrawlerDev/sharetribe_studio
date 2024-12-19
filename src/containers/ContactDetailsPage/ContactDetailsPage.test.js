@@ -21,6 +21,7 @@ describe('ContactDetailsPageComponent', () => {
           scrollingDisabled={false}
           authInProgress={false}
           currentUser={createCurrentUser('user1')}
+          currentUserHasListings={false}
           isAuthenticated={false}
           onChange={noop}
           onLogout={noop}

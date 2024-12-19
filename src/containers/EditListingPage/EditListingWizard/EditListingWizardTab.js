@@ -14,6 +14,7 @@ import { propTypes } from '../../../util/types';
 // Import modules from this directory
 import EditListingAvailabilityPanel from './EditListingAvailabilityPanel/EditListingAvailabilityPanel';
 import EditListingDetailsPanel from './EditListingDetailsPanel/EditListingDetailsPanel';
+import EditListingAddOnsPanel from './EditListingAddOnsPanel/EditListingAddOnsPanel';
 import EditListingDeliveryPanel from './EditListingDeliveryPanel/EditListingDeliveryPanel';
 import EditListingLocationPanel from './EditListingLocationPanel/EditListingLocationPanel';
 import EditListingPhotosPanel from './EditListingPhotosPanel/EditListingPhotosPanel';
@@ -29,6 +30,7 @@ export const DELIVERY = 'delivery';
 export const LOCATION = 'location';
 export const AVAILABILITY = 'availability';
 export const PHOTOS = 'photos';
+export const ADD_ONS = 'add-ons';
 
 // EditListingWizardTab component supports these tabs
 export const SUPPORTED_TABS = [
@@ -39,6 +41,7 @@ export const SUPPORTED_TABS = [
   LOCATION,
   AVAILABILITY,
   PHOTOS,
+  ADD_ONS,
 ];
 
 const pathParamsToNextTab = (params, tab, marketplaceTabs) => {
@@ -96,7 +99,7 @@ const EditListingWizardTab = props => {
     onCreateListingDraft,
     onImageUpload,
     onManageDisableScrolling,
-    onListingTypeChange,
+    onProcessChange,
     onRemoveImage,
     updatedTab,
     updateInProgress,
@@ -170,6 +173,7 @@ const EditListingWizardTab = props => {
       disabled: fetchInProgress,
       submitButtonText: tabSubmitButtonText,
       listingTypes: config.listing.listingTypes,
+      listing: currentListing,
       onManageDisableScrolling,
       onSubmit: values => {
         return onCompleteEditListingWizardTab(tab, values);
@@ -183,7 +187,7 @@ const EditListingWizardTab = props => {
       return (
         <EditListingDetailsPanel
           {...panelProps(DETAILS)}
-          onListingTypeChange={onListingTypeChange}
+          onProcessChange={onProcessChange}
           config={config}
         />
       );
@@ -251,6 +255,15 @@ const EditListingWizardTab = props => {
         />
       );
     }
+    case ADD_ONS: {
+      return (
+        <EditListingAddOnsPanel
+          {...panelProps(ADD_ONS)}
+          onProcessChange={onProcessChange}
+          config={config}
+        />
+      );
+    }
     default:
       return null;
   }
@@ -304,7 +317,7 @@ EditListingWizardTab.propTypes = {
   onCreateListingDraft: func.isRequired,
   onImageUpload: func.isRequired,
   onRemoveImage: func.isRequired,
-  onListingTypeChange: func.isRequired,
+  onProcessChange: func.isRequired,
   updatedTab: string,
   updateInProgress: bool.isRequired,
   config: object.isRequired,

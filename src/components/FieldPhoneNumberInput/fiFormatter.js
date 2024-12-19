@@ -1,5 +1,3 @@
-// NOTE: Template does not use this anymore. We might remove the file at some point in the future.
-
 /**
  * Slice a local number that is in the form
  * of 555 01234567

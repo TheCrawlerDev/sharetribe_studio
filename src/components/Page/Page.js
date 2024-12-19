@@ -6,12 +6,10 @@ import classNames from 'classnames';
 
 import { useConfiguration } from '../../context/configurationContext';
 import { useRouteConfiguration } from '../../context/routeConfigurationContext';
-import { getCustomCSSPropertiesFromConfig } from '../../util/style';
 import { useIntl, intlShape } from '../../util/reactIntl';
 import { metaTagProps } from '../../util/seo';
 import { canonicalRoutePath } from '../../util/routes';
 import { propTypes } from '../../util/types';
-import { apiBaseUrl } from '../../util/api';
 
 import css from './Page.module.css';
 
@@ -26,31 +24,6 @@ const twitterPageURL = siteTwitterHandle => {
     return `https://twitter.com/${siteTwitterHandle}`;
   }
   return null;
-};
-
-const webmanifestURL = marketplaceRootURL => {
-  // Note: on localhost (when running "yarn run dev"), the webmanifest is running on apiServer port
-  const baseUrl = apiBaseUrl(marketplaceRootURL);
-  return `${baseUrl}/site.webmanifest`;
-};
-
-const getFaviconVariants = config => {
-  // We add favicon through hosted configs
-  // NOTE: There's no favicon.ico file. This is an imageAsset object which is used together with <meta> tags.
-  const favicon = config.branding.favicon;
-  return favicon?.type === 'imageAsset' ? Object.values(favicon.attributes.variants) : [];
-};
-
-const getAppleTouchIconURL = config => {
-  // The appIcon is used to pick apple-touch-icon
-  // We use 180x180. I.e. we follow the example set by realfavicongenerator
-  const appIcon = config.branding.appIcon;
-  const appIconVariants =
-    appIcon?.type === 'imageAsset' ? Object.values(appIcon.attributes.variants) : [];
-  const appleTouchIconVariant = appIconVariants.find(variant => {
-    return variant.width === 180 && variant.height === 180;
-  });
-  return appleTouchIconVariant?.url;
 };
 
 class PageComponent extends Component {
@@ -197,29 +170,26 @@ class PageComponent extends Component {
     const hasSchema = schema != null;
     const schemaFromProps = hasSchema && Array.isArray(schema) ? schema : hasSchema ? [schema] : [];
     const addressMaybe = config.address?.streetAddress ? { address: config.address } : {};
-    const schemaArrayJSONString = JSON.stringify({
-      '@context': 'http://schema.org',
-      '@graph': [
-        ...schemaFromProps,
-        {
-          '@context': 'http://schema.org',
-          '@type': 'Organization',
-          '@id': `${marketplaceRootURL}#organization`,
-          url: marketplaceRootURL,
-          name: marketplaceName,
-          sameAs: sameOrganizationAs,
-          logo: config.branding.logoImageMobileURL,
-          ...addressMaybe,
-        },
-        {
-          '@context': 'http://schema.org',
-          '@type': 'WebSite',
-          url: marketplaceRootURL,
-          description: schemaDescription,
-          name: schemaTitle,
-        },
-      ],
-    });
+    const schemaArrayJSONString = JSON.stringify([
+      ...schemaFromProps,
+      {
+        '@context': 'http://schema.org',
+        '@type': 'Organization',
+        '@id': `${marketplaceRootURL}#organization`,
+        url: marketplaceRootURL,
+        name: marketplaceName,
+        sameAs: sameOrganizationAs,
+        logo: config.branding.logoImageMobileURL,
+        ...addressMaybe,
+      },
+      {
+        '@context': 'http://schema.org',
+        '@type': 'WebSite',
+        url: marketplaceRootURL,
+        description: schemaDescription,
+        name: schemaTitle,
+      },
+    ]);
 
     const scrollPositionStyles = scrollingDisabled
       ? { marginTop: `${-1 * this.scrollPosition}px` }
@@ -234,13 +204,21 @@ class PageComponent extends Component {
       });
     }
 
-    const faviconVariants = getFaviconVariants(config);
-    const appleTouchIcon = getAppleTouchIconURL(config);
+    // We add favicon through hosted configs
+    // NOTE: There's no favicon.ico file. This is an imageAsset object which is used together with <meta> tags.
+    // TODO: add app icons too
+    const faviconAsset = config.branding.favicon;
+    const faviconVariants =
+      faviconAsset?.type === 'imageAsset' ? Object.values(faviconAsset.attributes.variants) : [];
 
-    // Marketplace color and the color for <PrimaryButton> come from configs
-    // If set, we need to create those custom CSS Properties and set them for the app
+    // Marketplace color and branding image comes from configs
+    // If set, we need to create CSS Property and set it to DOM (documentElement is selected here)
     // Note: this is also set to <html> element in app.js to provide marketplace colors for modals/portals.
-    const styles = getCustomCSSPropertiesFromConfig(config.branding);
+    const styles = {
+      ['--marketplaceColor']: config.branding.marketplaceColor,
+      ['--marketplaceColorDark']: config.branding.marketplaceColorDark,
+      ['--marketplaceColorLight']: config.branding.marketplaceColorLight,
+    };
 
     return (
       <div className={classes} style={styles} id="page">
@@ -264,12 +242,6 @@ class PageComponent extends Component {
               />
             );
           })}
-
-          {appleTouchIcon ? (
-            <link rel="apple-touch-icon" sizes="180x180" href={appleTouchIcon} />
-          ) : null}
-
-          <link rel="manifest" href={webmanifestURL(marketplaceRootURL)} />
 
           <meta httpEquiv="Content-Type" content="text/html; charset=UTF-8" />
           <meta httpEquiv="Content-Language" content={intl.locale} />

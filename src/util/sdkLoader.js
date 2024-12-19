@@ -20,10 +20,8 @@ const createImageVariantConfig = (name, width, aspectRatio) => {
   let variantHeight = Math.round(aspectRatio * width);
 
   if (variantWidth > 3072 || variantHeight > 3072) {
-    if (!isServer) {
-      console.error(`Dimensions of custom image variant (${name}) are too high (w:${variantWidth}, h:${variantHeight}).
-      Reduce them to max 3072px. https://www.sharetribe.com/api-reference/marketplace.html#custom-image-variants`);
-    }
+    console.error(`Dimensions of custom image variant (${name}) are too high (w:${variantWidth}, h:${variantHeight}).
+    Reduce them to max 3072px. https://www.sharetribe.com/api-reference/marketplace.html#custom-image-variants`);
 
     if (variantHeight > 3072) {
       variantHeight = 3072;

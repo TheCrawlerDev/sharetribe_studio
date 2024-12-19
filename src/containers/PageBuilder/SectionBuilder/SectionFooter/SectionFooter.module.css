@@ -1,7 +1,7 @@
 @import '../../../../styles/customMediaQueries.css';
 
 .root {
-  border-top: 1px solid var(--colorGrey100);
+  /* border-top: 1px solid var(--colorGrey100); */
 }
 
 .footer {
@@ -62,6 +62,7 @@
 .slogan {
   font-size: 16px;
   line-height: 24px;
+  color: var(--colorWhite);
 }
 .sloganMobile {
   grid-area: details;
@@ -87,7 +88,7 @@
   display: inline-block;
   font-size: 12px;
   line-height: 16px;
-  color: var(--colorGrey500);
+  color: var(--colorWhite);
   margin-top: 24px;
 }
 
@@ -113,19 +114,12 @@
     text-decoration: none;
   }
 }
-.logoWrapper {
-  max-width: 370px;
-}
 .logoImage {
-  height: auto;
+  height: 24px;
   width: auto;
-  max-width: 100%;
+  max-width: 188px;
   object-fit: contain;
   object-position: center;
-
-  @media (--viewportLarge) {
-    max-width: min(100%, 298px);
-  }
 }
 
 @media (min-width: 350px) {

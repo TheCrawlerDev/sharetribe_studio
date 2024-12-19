@@ -17,26 +17,20 @@ import NotFoundPage from '../containers/NotFoundPage/NotFoundPage';
 
 import LoadableComponentErrorBoundary from './LoadableComponentErrorBoundary/LoadableComponentErrorBoundary';
 
-const isBanned = currentUser => {
-  const isBrowser = typeof window !== 'undefined';
-  // Future todo: currentUser?.attributes?.state === 'banned'
-  return isBrowser && currentUser?.attributes?.banned === true;
-};
-
 const canShowComponent = props => {
-  const { isAuthenticated, currentUser, route } = props;
+  const { isAuthenticated, route } = props;
   const { auth } = route;
-  return !auth || (isAuthenticated && !isBanned(currentUser));
+  return !auth || isAuthenticated;
 };
 
 const callLoadData = props => {
   const { match, location, route, dispatch, logoutInProgress, config } = props;
-  const { loadData, name } = route;
+  const { loadData, name, extraProps } = route;
   const shouldLoadData =
     typeof loadData === 'function' && canShowComponent(props) && !logoutInProgress;
 
   if (shouldLoadData) {
-    dispatch(loadData(match.params, location.search, config))
+    dispatch(loadData({ ...match.params, extraProps }, location.search, config))
       .then(() => {
         if (props.logLoadDataCalls) {
           // This gives good input for debugging issues on live environments, but with test it's not needed.
@@ -78,7 +72,7 @@ const setPageScrollPosition = (location, delayed) => {
       // might affect user initiated scrolling.
       delayed = window.setTimeout(() => {
         const reTry = document.querySelector(location.hash);
-        reTry?.scrollIntoView({
+        reTry.scrollIntoView({
           block: 'start',
           behavior: 'smooth',
         });
@@ -130,28 +124,17 @@ class RouteComponentRenderer extends Component {
   }
 
   render() {
-    const { route, match, location, staticContext, currentUser } = this.props;
+    const { route, match, location, staticContext } = this.props;
     const { component: RouteComponent, authPage = 'SignupPage', extraProps } = route;
     const canShow = canShowComponent(this.props);
     if (!canShow) {
       staticContext.unauthorized = true;
     }
 
-    const hasCurrentUser = !!currentUser?.id;
-    const restrictedPageWithCurrentUser = !canShow && hasCurrentUser;
-    // Banned users are redirected to LandingPage
-    const isBannedFromAuthPages = restrictedPageWithCurrentUser && isBanned(currentUser);
     return canShow ? (
       <LoadableComponentErrorBoundary>
-        <RouteComponent
-          params={match.params}
-          location={location}
-          staticContext={staticContext}
-          {...extraProps}
-        />
+        <RouteComponent params={match.params} location={location} {...extraProps} />
       </LoadableComponentErrorBoundary>
-    ) : isBannedFromAuthPages ? (
-      <NamedRedirect name="LandingPage" />
     ) : (
       <NamedRedirect
         name={authPage}
@@ -166,7 +149,6 @@ RouteComponentRenderer.defaultProps = { staticContext: {} };
 RouteComponentRenderer.propTypes = {
   isAuthenticated: bool.isRequired,
   logoutInProgress: bool.isRequired,
-  currentUser: propTypes.currentUser,
   route: propTypes.route.isRequired,
   routeConfiguration: arrayOf(propTypes.route).isRequired,
   match: shape({
@@ -182,8 +164,7 @@ RouteComponentRenderer.propTypes = {
 
 const mapStateToProps = state => {
   const { isAuthenticated, logoutInProgress } = state.auth;
-  const { currentUser } = state.user;
-  return { isAuthenticated, logoutInProgress, currentUser };
+  return { isAuthenticated, logoutInProgress };
 };
 const RouteComponentContainer = compose(connect(mapStateToProps))(RouteComponentRenderer);
 
@@ -215,6 +196,7 @@ const Routes = (props, context) => {
     // By default, our routes are exact.
     // https://reacttraining.com/react-router/web/api/Route/exact-bool
     const isExact = route.exact != null ? route.exact : true;
+
     return (
       <Route
         key={route.name}

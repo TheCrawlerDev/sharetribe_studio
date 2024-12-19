@@ -137,7 +137,6 @@ const SectionCarousel = props => {
               rootClassName={css.block}
               ctaButtonClass={defaultClasses.ctaButton}
               blocks={blocks}
-              sectionId={sectionId}
               responsiveImageSizes={getResponsiveImageSizes(numColumns)}
               options={options}
             />

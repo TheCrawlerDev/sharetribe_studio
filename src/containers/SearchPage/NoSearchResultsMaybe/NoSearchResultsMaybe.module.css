@@ -14,7 +14,6 @@
   }
 }
 
-.createListingLink,
 .resetAllFiltersButton {
   composes: h5 from global;
   font-weight: var(--fontWeightMedium);

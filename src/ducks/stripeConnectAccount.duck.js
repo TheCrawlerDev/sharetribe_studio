@@ -1,7 +1,7 @@
 // This file deals with Marketplace API which will create Stripe Custom Connect accounts
 // from given bank_account tokens.
-import * as log from '../util/log';
 import { storableError } from '../util/errors';
+import * as log from '../util/log';
 
 // ================ Action types ================ //
 
@@ -162,6 +162,7 @@ export const createStripeAccount = params => (dispatch, getState, sdk) => {
   const {
     country,
     accountType,
+    bankAccountToken,
     businessProfileMCC,
     businessProfileURL,
     stripePublishableKey,
@@ -190,6 +191,7 @@ export const createStripeAccount = params => (dispatch, getState, sdk) => {
         {
           country,
           accountToken,
+          bankAccountToken,
           requestedCapabilities,
           businessProfileMCC,
           businessProfileURL,
@@ -223,9 +225,14 @@ export const createStripeAccount = params => (dispatch, getState, sdk) => {
 // See API reference for more information:
 // https://www.sharetribe.com/api-reference/?javascript#update-stripe-account
 export const updateStripeAccount = params => (dispatch, getState, sdk) => {
+  const { bankAccountToken } = params;
+
   dispatch(stripeAccountUpdateRequest());
   return sdk.stripeAccount
-    .update({ requestedCapabilities: ['card_payments', 'transfers'] }, { expand: true })
+    .update(
+      { bankAccountToken, requestedCapabilities: ['card_payments', 'transfers'] },
+      { expand: true }
+    )
     .then(response => {
       const stripeAccount = response.data.data;
       dispatch(stripeAccountUpdateSuccess(stripeAccount));
@@ -269,17 +276,12 @@ export const getStripeConnectAccountLink = params => (dispatch, getState, sdk) =
   const { failureURL, successURL, type } = params;
   dispatch(getAccountLinkRequest());
 
-  // Read more from collection_options and verification updates from Stripe's Docs:
-  // https://docs.stripe.com/connect/handle-verification-updates
   return sdk.stripeAccountLinks
     .create({
       failureURL,
       successURL,
       type,
-      collectionOptions: {
-        fields: 'currently_due',
-        future_requirements: 'include',
-      },
+      collect: 'currently_due',
     })
     .then(response => {
       // Return the account link

@@ -17,7 +17,6 @@ const GRID_CONFIG = [
   { contentCss: css.contentCol3, gridCss: css.gridCol3 },
   { contentCss: css.contentCol4, gridCss: css.gridCol4 },
 ];
-const MAX_MOBILE_SCREEN_WIDTH = 1024;
 
 const getIndex = numberOfColumns => numberOfColumns - 1;
 
@@ -44,7 +43,6 @@ const SectionFooter = props => {
     copyright,
     blocks,
     options,
-    linkLogoToExternalSite,
   } = props;
 
   // If external mapping has been included for fields
@@ -59,11 +57,6 @@ const SectionFooter = props => {
   });
 
   const showSocialMediaLinks = socialMediaLinks?.length > 0;
-  const hasMatchMedia = typeof window !== 'undefined' && window?.matchMedia;
-  const isMobileLayout = hasMatchMedia
-    ? window.matchMedia(`(max-width: ${MAX_MOBILE_SCREEN_WIDTH}px)`)?.matches
-    : true;
-  const logoLayout = isMobileLayout ? 'mobile' : 'desktop';
 
   // use block builder instead of mapping blocks manually
 
@@ -79,13 +72,7 @@ const SectionFooter = props => {
       <div className={css.footer}>
         <div className={classNames(css.content, getContentCss(numberOfColumns))}>
           <div>
-            <LinkedLogo
-              rootClassName={css.logoLink}
-              logoClassName={css.logoWrapper}
-              logoImageClassName={css.logoImage}
-              linkToExternalSite={linkLogoToExternalSite}
-              layout={logoLayout}
-            />
+            <LinkedLogo rootClassName={css.logoLink} logoClassName={css.logoImage} />
           </div>
           <div className={css.sloganMobile}>
             <Field data={slogan} className={css.slogan} />
@@ -96,13 +83,13 @@ const SectionFooter = props => {
             </div>
             {showSocialMediaLinks ? (
               <div className={css.icons}>
-                <BlockBuilder blocks={linksWithBlockId} sectionId={sectionId} options={options} />
+                <BlockBuilder blocks={linksWithBlockId} options={options} />
               </div>
             ) : null}
             <Field data={copyright} className={css.copyright} />
           </div>
           <div className={classNames(css.grid, getGridCss(numberOfColumns))}>
-            <BlockBuilder blocks={blocks} sectionId={sectionId} options={options} />
+            <BlockBuilder blocks={blocks} options={options} />
           </div>
         </div>
       </div>

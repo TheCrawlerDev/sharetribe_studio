@@ -21,7 +21,7 @@ const defaultBlockComponents = {
 ////////////////////
 
 const BlockBuilder = props => {
-  const { blocks, sectionId, options, ...otherProps } = props;
+  const { blocks, options, ...otherProps } = props;
 
   // Extract block & field component mappings from props
   // If external mapping has been included for fields
@@ -40,24 +40,14 @@ const BlockBuilder = props => {
 
   return (
     <>
-      {blocks.map((block, index) => {
+      {blocks.map(block => {
         const config = components[block.blockType];
         const Block = config?.component;
-        const blockId = block.blockId || `${sectionId}-block-${index + 1}`;
-
         if (Block) {
-          return (
-            <Block
-              key={`${blockId}_i${index}`}
-              {...block}
-              blockId={blockId}
-              {...blockOptionsMaybe}
-              {...otherProps}
-            />
-          );
+          return <Block key={block.blockId} {...block} {...blockOptionsMaybe} {...otherProps} />;
         } else {
           // If the block type is unknown, the app can't know what to render
-          console.warn(`Unknown block type (${block.blockType}) detected inside (${sectionId}).`);
+          console.warn(`Unknown block type (${block.blockType}) detected.`);
           return null;
         }
       })}
@@ -66,8 +56,7 @@ const BlockBuilder = props => {
 };
 
 const propTypeBlock = shape({
-  blockId: string,
-  blockName: string,
+  blockId: string.isRequired,
   blockType: oneOf(['defaultBlock', 'footerBlock', 'socialMediaLink']).isRequired,
   // Plus all kind of unknown fields.
   // BlockBuilder doesn't really need to care about those

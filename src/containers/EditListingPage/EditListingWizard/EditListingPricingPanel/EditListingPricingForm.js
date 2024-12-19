@@ -100,6 +100,20 @@ export const EditListingPricingFormComponent = props => (
             validate={priceValidators}
           />
 
+          <FieldTextInput
+            id={`${formId}minimum_hours`}
+            name="minimum_hours"
+            type="number"
+            className={css.input}
+            autoFocus={autoFocus}
+            label={intl.formatMessage({ id: 'EditListingPricingForm.minimuHours' }, { unitType })}
+            placeholder={intl.formatMessage({ id: 'EditListingPricingForm.priceInputPlaceholder' })}
+            validate={validators.numberAtLeast(
+              'Please describe the minimum hours to locate your studio',
+              1
+            )}
+          />
+
           <Button
             className={css.submitButton}
             type="submit"

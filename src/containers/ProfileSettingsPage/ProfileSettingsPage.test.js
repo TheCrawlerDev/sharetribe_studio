@@ -15,6 +15,7 @@ describe('ProfileSettingsPage', () => {
     const props = {
       authInProgress: false,
       currentUser: createCurrentUser('userId'),
+      currentUserHasListings: false,
       history: { push: noop },
       isAuthenticated: false,
       location: { search: '' },
@@ -36,5 +37,7 @@ describe('ProfileSettingsPage', () => {
 
     const viewProfileLink = 'ProfileSettingsPage.viewProfileLink';
     expect(screen.getByText(viewProfileLink)).toBeInTheDocument();
+
+    // TODO: ProfileSettingsForm should have a test of its own.
   });
 });

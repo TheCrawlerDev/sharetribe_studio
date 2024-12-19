@@ -42,7 +42,17 @@ const TabNav = props => {
     <nav className={classes}>
       {tabs.map((tab, index) => {
         const id = typeof tab.id === 'string' ? tab.id : `${index}`;
-        return <Tab key={id} id={id} className={tabClasses} {...tab} />;
+        const onlyForPremium =
+          typeof tab?.onlyForPremium === 'boolean' ? tab?.onlyForPremium : false;
+        return (
+          <Tab
+            key={id}
+            id={id}
+            className={tabClasses}
+            {...tab}
+            // disabled={!!onlyForPremium && !props?.premiumUser ? true : false}
+          />
+        );
       })}
     </nav>
   );

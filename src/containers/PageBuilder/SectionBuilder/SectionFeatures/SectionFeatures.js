@@ -62,7 +62,6 @@ const SectionFeatures = props => {
             rootClassName={css.block}
             ctaButtonClass={defaultClasses.ctaButton}
             blocks={blocks}
-            sectionId={sectionId}
             responsiveImageSizes="(max-width: 767px) 100vw, 568px"
             options={options}
           />

@@ -25,10 +25,6 @@ export const STRIPE_CUSTOMER_REQUEST = 'app/CheckoutPage/STRIPE_CUSTOMER_REQUEST
 export const STRIPE_CUSTOMER_SUCCESS = 'app/CheckoutPage/STRIPE_CUSTOMER_SUCCESS';
 export const STRIPE_CUSTOMER_ERROR = 'app/CheckoutPage/STRIPE_CUSTOMER_ERROR';
 
-export const INITIATE_INQUIRY_REQUEST = 'app/CheckoutPage/INITIATE_INQUIRY_REQUEST';
-export const INITIATE_INQUIRY_SUCCESS = 'app/CheckoutPage/INITIATE_INQUIRY_SUCCESS';
-export const INITIATE_INQUIRY_ERROR = 'app/CheckoutPage/INITIATE_INQUIRY_ERROR';
-
 // ================ Reducer ================ //
 
 const initialState = {
@@ -37,13 +33,10 @@ const initialState = {
   speculateTransactionInProgress: false,
   speculateTransactionError: null,
   speculatedTransaction: null,
-  isClockInSync: false,
   transaction: null,
   initiateOrderError: null,
   confirmPaymentError: null,
   stripeCustomerFetched: false,
-  initiateInquiryInProgress: false,
-  initiateInquiryError: null,
 };
 
 export default function checkoutPageReducer(state = initialState, action = {}) {
@@ -59,18 +52,12 @@ export default function checkoutPageReducer(state = initialState, action = {}) {
         speculateTransactionError: null,
         speculatedTransaction: null,
       };
-    case SPECULATE_TRANSACTION_SUCCESS: {
-      // Check that the local devices clock is within a minute from the server
-      const lastTransitionedAt = payload.transaction?.attributes?.lastTransitionedAt;
-      const localTime = new Date();
-      const minute = 60000;
+    case SPECULATE_TRANSACTION_SUCCESS:
       return {
         ...state,
         speculateTransactionInProgress: false,
         speculatedTransaction: payload.transaction,
-        isClockInSync: Math.abs(lastTransitionedAt?.getTime() - localTime.getTime()) < minute,
       };
-    }
     case SPECULATE_TRANSACTION_ERROR:
       console.error(payload); // eslint-disable-line no-console
       return {
@@ -102,13 +89,6 @@ export default function checkoutPageReducer(state = initialState, action = {}) {
     case STRIPE_CUSTOMER_ERROR:
       console.error(payload); // eslint-disable-line no-console
       return { ...state, stripeCustomerFetchError: payload };
-
-    case INITIATE_INQUIRY_REQUEST:
-      return { ...state, initiateInquiryInProgress: true, initiateInquiryError: null };
-    case INITIATE_INQUIRY_SUCCESS:
-      return { ...state, initiateInquiryInProgress: false };
-    case INITIATE_INQUIRY_ERROR:
-      return { ...state, initiateInquiryInProgress: false, initiateInquiryError: payload };
 
     default:
       return state;
@@ -171,14 +151,6 @@ export const stripeCustomerError = e => ({
   payload: e,
 });
 
-export const initiateInquiryRequest = () => ({ type: INITIATE_INQUIRY_REQUEST });
-export const initiateInquirySuccess = () => ({ type: INITIATE_INQUIRY_SUCCESS });
-export const initiateInquiryError = e => ({
-  type: INITIATE_INQUIRY_ERROR,
-  error: true,
-  payload: e,
-});
-
 /* ================ Thunks ================ */
 
 export const initiateOrder = (
@@ -206,6 +178,7 @@ export const initiateOrder = (
     ...quantityMaybe,
     ...bookingParamsMaybe,
     ...otherOrderParams,
+    addOns: getAddOns(),
   };
 
   const bodyParams = isTransition
@@ -224,7 +197,7 @@ export const initiateOrder = (
     expand: true,
   };
 
-  const handleSuccess = response => {
+  const handleSucces = response => {
     const entities = denormalisedResponseEntities(response);
     const order = entities[0];
     dispatch(initiateOrderSuccess(order));
@@ -248,24 +221,24 @@ export const initiateOrder = (
   if (isTransition && isPrivilegedTransition) {
     // transition privileged
     return transitionPrivileged({ isSpeculative: false, orderData, bodyParams, queryParams })
-      .then(handleSuccess)
+      .then(handleSucces)
       .catch(handleError);
   } else if (isTransition) {
     // transition non-privileged
     return sdk.transactions
       .transition(bodyParams, queryParams)
-      .then(handleSuccess)
+      .then(handleSucces)
       .catch(handleError);
   } else if (isPrivilegedTransition) {
     // initiate privileged
     return initiatePrivileged({ isSpeculative: false, orderData, bodyParams, queryParams })
-      .then(handleSuccess)
+      .then(handleSucces)
       .catch(handleError);
   } else {
     // initiate non-privileged
     return sdk.transactions
       .initiate(bodyParams, queryParams)
-      .then(handleSuccess)
+      .then(handleSucces)
       .catch(handleError);
   }
 };
@@ -282,13 +255,9 @@ export const confirmPayment = (transactionId, transitionName, transitionParams =
     transition: transitionName,
     params: transitionParams,
   };
-  const queryParams = {
-    include: ['booking', 'provider'],
-    expand: true,
-  };
 
   return sdk.transactions
-    .transition(bodyParams, queryParams)
+    .transition(bodyParams)
     .then(response => {
       const order = response.data.data;
       dispatch(confirmPaymentSuccess(order.id));
@@ -323,53 +292,9 @@ export const sendMessage = params => (dispatch, getState, sdk) => {
   }
 };
 
-/**
- * Initiate transaction against default-inquiry process
- * Note: At this point inquiry transition is made directly against Marketplace API.
- *       So, client app's server is not involved here unlike with transitions including payments.
- *
- * @param {*} inquiryParams contains listingId and protectedData
- * @param {*} processAlias 'default-inquiry/release-1'
- * @param {*} transitionName 'transition/inquire-without-payment'
- * @returns
- */
-export const initiateInquiryWithoutPayment = (inquiryParams, processAlias, transitionName) => (
-  dispatch,
-  getState,
-  sdk
-) => {
-  dispatch(initiateInquiryRequest());
-
-  if (!processAlias) {
-    const error = new Error('No transaction process attached to listing');
-    log.error(error, 'listing-process-missing', {
-      listingId: listing?.id?.uuid,
-    });
-    dispatch(initiateInquiryError(storableError(error)));
-    return Promise.reject(error);
-  }
-
-  const bodyParams = {
-    transition: transitionName,
-    processAlias,
-    params: inquiryParams,
-  };
-  const queryParams = {
-    include: ['provider'],
-    expand: true,
-  };
-
-  return sdk.transactions
-    .initiate(bodyParams, queryParams)
-    .then(response => {
-      const transactionId = response.data.data.id;
-      dispatch(initiateInquirySuccess());
-      return transactionId;
-    })
-    .catch(e => {
-      dispatch(initiateInquiryError(storableError(e)));
-      throw e;
-    });
+export const getAddOns = () => {
+  const checkoutData = JSON.parse(sessionStorage.getItem('CheckoutPage')) ?? {};
+  return checkoutData?.orderData?.add_ons;
 };
 
 /**
@@ -404,12 +329,13 @@ export const speculateTransaction = (
 
   // Parameters only for client app's server
   const orderData = deliveryMethod ? { deliveryMethod } : {};
-
+  
   // Parameters for Marketplace API
   const transitionParams = {
     ...quantityMaybe,
     ...bookingParamsMaybe,
     ...otherOrderParams,
+    addOns: getAddOns(),
     cardToken: 'CheckoutPage_speculative_card_token',
   };
 
@@ -478,13 +404,8 @@ export const speculateTransaction = (
 // We need to fetch currentUser with correct params to include relationship
 export const stripeCustomer = () => (dispatch, getState, sdk) => {
   dispatch(stripeCustomerRequest());
-  const fetchCurrentUserOptions = {
-    callParams: { include: ['stripeCustomer.defaultPaymentMethod'] },
-    updateHasListings: false,
-    updateNotifications: false,
-  };
 
-  return dispatch(fetchCurrentUser(fetchCurrentUserOptions))
+  return dispatch(fetchCurrentUser({ include: ['stripeCustomer.defaultPaymentMethod'] }))
     .then(response => {
       dispatch(stripeCustomerSuccess());
     })

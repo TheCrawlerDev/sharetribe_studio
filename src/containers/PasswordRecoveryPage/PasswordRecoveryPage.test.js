@@ -19,6 +19,7 @@ describe('PasswordRecoveryPageComponent', () => {
         location={{ search: '' }}
         scrollingDisabled={false}
         authInProgress={false}
+        currentUserHasListings={false}
         isAuthenticated={false}
         onLogout={noop}
         onManageDisableScrolling={noop}

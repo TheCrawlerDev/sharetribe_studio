@@ -81,7 +81,7 @@ describe('Field helpers', () => {
   });
 
   describe('exposeImageProps(data)', () => {
-    it('should return only "alt", "variants" and "link" props', () => {
+    it('should return only "alt" and "variants" props', () => {
       const image = {
         id: 'image-id',
         type: 'imageAsset',
@@ -104,12 +104,10 @@ describe('Field helpers', () => {
       expect(exposeImageProps({ alt: 'Hello world!', image })).toEqual({
         alt: 'Hello world!',
         image,
-        link: null,
       });
       expect(exposeImageProps({ alt: 'Hello world!', image, blaa: 'blaa' })).toEqual({
         alt: 'Hello world!',
         image,
-        link: null,
       });
     });
 
@@ -164,7 +162,6 @@ describe('Field helpers', () => {
       expect(exposeImageProps({ alt: 'Hello world!', image })).toEqual({
         alt: 'Hello world!',
         image: expected,
-        link: null,
       });
     });
   });

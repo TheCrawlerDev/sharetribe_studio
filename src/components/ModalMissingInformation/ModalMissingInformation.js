@@ -7,12 +7,12 @@ import { useRouteConfiguration } from '../../context/routeConfigurationContext';
 import { FormattedMessage } from '../../util/reactIntl';
 import { ensureCurrentUser } from '../../util/data';
 import { propTypes } from '../../util/types';
-import { isUserAuthorized } from '../../util/userHelpers';
 import { pathByRouteName } from '../../util/routes';
 
 import { Modal } from '../../components';
 
 import EmailReminder from './EmailReminder';
+import StripeAccountReminder from './StripeAccountReminder';
 import css from './ModalMissingInformation.module.css';
 
 const MISSING_INFORMATION_MODAL_WHITELIST = [
@@ -25,6 +25,7 @@ const MISSING_INFORMATION_MODAL_WHITELIST = [
 ];
 
 const EMAIL_VERIFICATION = 'EMAIL_VERIFICATION';
+const STRIPE_ACCOUNT = 'STRIPE_ACCOUNT';
 
 class ModalMissingInformation extends Component {
   constructor(props) {
@@ -80,9 +81,14 @@ class ModalMissingInformation extends Component {
       const emailUnverified = !!currentUser.id && !currentUser.attributes.emailVerified;
       const emailVerificationNeeded = hasListingsOrOrders && emailUnverified;
 
+      const stripeAccountMissing = !!currentUser.id && !currentUser.attributes.stripeConnected;
+      const stripeAccountNeeded = currentUserHasListings && stripeAccountMissing;
+
       // Show reminder
       if (emailVerificationNeeded) {
         this.setState({ showMissingInformationReminder: EMAIL_VERIFICATION });
+      } else if (stripeAccountNeeded) {
+        this.setState({ showMissingInformationReminder: STRIPE_ACCOUNT });
       }
     }
   }
@@ -105,7 +111,7 @@ class ModalMissingInformation extends Component {
     let content = null;
 
     const currentUserLoaded = user && user.id;
-    if (currentUserLoaded && isUserAuthorized(currentUser)) {
+    if (currentUserLoaded) {
       if (this.state.showMissingInformationReminder === EMAIL_VERIFICATION) {
         content = (
           <EmailReminder
@@ -116,6 +122,8 @@ class ModalMissingInformation extends Component {
             sendVerificationEmailError={sendVerificationEmailError}
           />
         );
+      } else if (this.state.showMissingInformationReminder === STRIPE_ACCOUNT) {
+        content = <StripeAccountReminder className={classes} />;
       }
     }
 

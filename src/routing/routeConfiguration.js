@@ -9,10 +9,12 @@ import PreviewResolverPage from '../containers/PreviewResolverPage/PreviewResolv
 // Otherwise, components will import form container eventually and
 // at that point css bundling / imports will happen in wrong order.
 import { NamedRedirect } from '../components';
+import { getMe } from '../util/api';
 
 const pageDataLoadingAPI = getPageDataLoadingAPI();
 
 const AuthenticationPage = loadable(() => import(/* webpackChunkName: "AuthenticationPage" */ '../containers/AuthenticationPage/AuthenticationPage'));
+const BlogPage = loadable(() => import(/* webpackChunkName: "CMSPage" */ '../containers/BlogPage/BlogPage'));
 const CheckoutPage = loadable(() => import(/* webpackChunkName: "CheckoutPage" */ '../containers/CheckoutPage/CheckoutPage'));
 const CMSPage = loadable(() => import(/* webpackChunkName: "CMSPage" */ '../containers/CMSPage/CMSPage'));
 const ContactDetailsPage = loadable(() => import(/* webpackChunkName: "ContactDetailsPage" */ '../containers/ContactDetailsPage/ContactDetailsPage'));
@@ -27,6 +29,9 @@ const PasswordChangePage = loadable(() => import(/* webpackChunkName: "PasswordC
 const PasswordRecoveryPage = loadable(() => import(/* webpackChunkName: "PasswordRecoveryPage" */ '../containers/PasswordRecoveryPage/PasswordRecoveryPage'));
 const PasswordResetPage = loadable(() => import(/* webpackChunkName: "PasswordResetPage" */ '../containers/PasswordResetPage/PasswordResetPage'));
 const PaymentMethodsPage = loadable(() => import(/* webpackChunkName: "PaymentMethodsPage" */ '../containers/PaymentMethodsPage/PaymentMethodsPage'));
+const IntegrateCalendarsPage = loadable(() => import(/* webpackChunkName: "IntegrateCalendarsPage" */ '../containers/IntegrateCalendarsPage/IntegrateCalendarsPage'));
+const JoinDiscordPage = loadable(() => import(/* webpackChunkName: "IntegrateCalendarsPage" */ '../containers/JoinDiscordPage/JoinDiscordPage'));
+const ShareProfilePage = loadable(() => import(/* webpackChunkName: "IntegrateCalendarsPage" */ '../containers/ShareProfilePage/ShareProfilePage'));
 const PrivacyPolicyPage = loadable(() => import(/* webpackChunkName: "PrivacyPolicyPage" */ '../containers/PrivacyPolicyPage/PrivacyPolicyPage'));
 const ProfilePage = loadable(() => import(/* webpackChunkName: "ProfilePage" */ '../containers/ProfilePage/ProfilePage'));
 const ProfileSettingsPage = loadable(() => import(/* webpackChunkName: "ProfileSettingsPage" */ '../containers/ProfileSettingsPage/ProfileSettingsPage'));
@@ -35,7 +40,7 @@ const SearchPageWithGrid = loadable(() => import(/* webpackChunkName: "SearchPag
 const StripePayoutPage = loadable(() => import(/* webpackChunkName: "StripePayoutPage" */ '../containers/StripePayoutPage/StripePayoutPage'));
 const TermsOfServicePage = loadable(() => import(/* webpackChunkName: "TermsOfServicePage" */ '../containers/TermsOfServicePage/TermsOfServicePage'));
 const TransactionPage = loadable(() => import(/* webpackChunkName: "TransactionPage" */ '../containers/TransactionPage/TransactionPage'));
-const NoAccessPage = loadable(() => import(/* webpackChunkName: "NoAccessPage" */ '../containers/NoAccessPage/NoAccessPage'));
+const SubscriptionsPlansPage = loadable(() => import(/* webpackChunkName: "SubscriptionsPlans" */ '../containers/SubscriptionsPlansPage/SubscriptionsPlansPage'));
 
 // Styleguide helps you to review current components and develop new ones
 const StyleguidePage = loadable(() => import(/* webpackChunkName: "StyleguidePage" */ '../containers/StyleguidePage/StyleguidePage'));
@@ -45,6 +50,8 @@ export const ACCOUNT_SETTINGS_PAGES = [
   'PasswordChangePage',
   'StripePayoutPage',
   'PaymentMethodsPage',
+  'IntegrateCalendarsPage',
+  'JoinDiscordPage',
 ];
 
 // https://en.wikipedia.org/wiki/Universally_unique_identifier#Nil_UUID
@@ -61,16 +68,13 @@ const RedirectToLandingPage = () => <NamedRedirect name="LandingPage" />;
 
 // Our routes are exact by default.
 // See behaviour from Routes.js where Route is created.
-const routeConfiguration = (layoutConfig, accessControlConfig) => {
+const routeConfiguration = (layoutConfig) => {
   const SearchPage = layoutConfig.searchPage?.variantType === 'map' 
     ? SearchPageWithMap 
     : SearchPageWithGrid;
   const ListingPage = layoutConfig.listingPage?.variantType === 'carousel' 
     ? ListingPageCarousel 
     : ListingPageCoverPhoto;
-
-  const isPrivateMarketplace = accessControlConfig?.marketplace?.private === true;
-  const authForPrivateMarketplace = isPrivateMarketplace ? { auth: true } : {};
   
   return [
     {
@@ -80,15 +84,27 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
       loadData: pageDataLoadingAPI.LandingPage.loadData,
     },
     {
+      path: '/blog',
+      name: 'BlogMainPage',
+      component: BlogPage,
+      loadData: pageDataLoadingAPI.BlogPage.loadData,      
+    },
+    {
+      path: '/blog/:pageId',
+      name: 'BlogSecondaryPage',
+      component: CMSPage,
+      loadData: pageDataLoadingAPI.BlogPage.loadData,      
+    },
+    {
       path: '/p/:pageId',
       name: 'CMSPage',
       component: CMSPage,
       loadData: pageDataLoadingAPI.CMSPage.loadData,
-    },
+      extraProps: { isBlog: false },
+    },    
     {
       path: '/s',
       name: 'SearchPage',
-      ...authForPrivateMarketplace,
       component: SearchPage,
       loadData: pageDataLoadingAPI.SearchPage.loadData,
     },
@@ -100,7 +116,6 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
     {
       path: '/l/:slug/:id',
       name: 'ListingPage',
-      ...authForPrivateMarketplace,
       component: ListingPage,
       loadData: pageDataLoadingAPI.ListingPage.loadData,
     },
@@ -124,9 +139,13 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
       name: 'NewListingPage',
       auth: true,
       component: () => (
+        // <NamedRedirect
+        //   name="EditListingPage"
+        //   params={{ slug: draftSlug, id: draftId, type: 'new', tab: 'details' }}
+        // />
         <NamedRedirect
-          name="EditListingPage"
-          params={{ slug: draftSlug, id: draftId, type: 'new', tab: 'details' }}
+          name="SubscriptionPlansPage"
+          params={{}}
         />
       ),
     },
@@ -150,7 +169,6 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
     {
       path: '/l/:id',
       name: 'ListingPageCanonical',
-      ...authForPrivateMarketplace,
       component: ListingPage,
       loadData: pageDataLoadingAPI.ListingPage.loadData,
     },
@@ -162,16 +180,27 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
     {
       path: '/u/:id',
       name: 'ProfilePage',
-      ...authForPrivateMarketplace,
       component: ProfilePage,
       loadData: pageDataLoadingAPI.ProfilePage.loadData,
     },
     {
-      path: '/u/:id/:variant',
-      name: 'ProfilePageVariant',
-      auth: true,
-      component: ProfilePage,
-      loadData: pageDataLoadingAPI.ProfilePage.loadData,
+      path: '/me/:username',
+      name: 'MyselfPage',
+      component: props => {
+       getMe(props.params?.username).then((data)=>{
+          let response = data?.data?.data;
+          if(response?.Count > 0){
+            // window.location.replace(`/u/${response?.Items[0]?.uuid}`);
+            return <NamedRedirect name="ProfilePage" params={{ id: response?.Items[0]?.uuid }} />
+          } else {
+            return <NamedRedirect name="NotFoundPage"/>
+          }
+        }).catch((error)=>{
+          console.log(error);
+          return <NamedRedirect name="NotFoundPage"/>
+        });
+        return <></>;  
+      },
     },
     {
       path: '/profile-settings',
@@ -198,18 +227,10 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
       loadData: pageDataLoadingAPI.AuthenticationPage.loadData,
     },
     {
-      path: '/signup/:userType',
-      name: 'SignupForUserTypePage',
-      component: AuthenticationPage,
-      extraProps: { tab: 'signup' },
-      loadData: pageDataLoadingAPI.AuthenticationPage.loadData,
-    },
-    {
       path: '/confirm',
       name: 'ConfirmPage',
       component: AuthenticationPage,
       extraProps: { tab: 'confirm' },
-      loadData: pageDataLoadingAPI.AuthenticationPage.loadData,
     },
     {
       path: '/recover-password',
@@ -320,6 +341,30 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
       loadData: pageDataLoadingAPI.PaymentMethodsPage.loadData,
     },
     {
+      path: '/account/integrate-calendars',
+      name: 'IntegrateCalendarsPage',
+      auth: true,
+      authPage: 'LoginPage',
+      component: IntegrateCalendarsPage,
+      loadData: pageDataLoadingAPI.IntegrateCalendarsPage.loadData,
+    },
+    {
+      path: '/account/join-community',
+      name: 'JoinDiscordPage',
+      auth: true,
+      authPage: 'LoginPage',
+      component: JoinDiscordPage,
+      loadData: pageDataLoadingAPI.JoinDiscordPage.loadData,
+    },
+    {
+      path: '/account/share-profile',
+      name: 'ShareProfilePage',
+      auth: true,
+      authPage: 'LoginPage',
+      component: ShareProfilePage,
+      loadData: pageDataLoadingAPI.ShareProfilePage.loadData,
+    },        
+    {
       path: '/terms-of-service',
       name: 'TermsOfServicePage',
       component: TermsOfServicePage,
@@ -334,38 +379,28 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
     {
       path: '/styleguide',
       name: 'Styleguide',
-      ...authForPrivateMarketplace,
       component: StyleguidePage,
     },
     {
       path: '/styleguide/g/:group',
       name: 'StyleguideGroup',
-      ...authForPrivateMarketplace,
       component: StyleguidePage,
     },
     {
       path: '/styleguide/c/:component',
       name: 'StyleguideComponent',
-      ...authForPrivateMarketplace,
       component: StyleguidePage,
     },
     {
       path: '/styleguide/c/:component/:example',
       name: 'StyleguideComponentExample',
-      ...authForPrivateMarketplace,
       component: StyleguidePage,
     },
     {
       path: '/styleguide/c/:component/:example/raw',
       name: 'StyleguideComponentExampleRaw',
-      ...authForPrivateMarketplace,
       component: StyleguidePage,
       extraProps: { raw: true },
-    },
-    {
-      path: '/no-:missingAccessRight',
-      name: 'NoAccessPage',
-      component: NoAccessPage,
     },
     {
       path: '/notfound',
@@ -400,6 +435,14 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
       path: '/preview',
       name: 'PreviewResolverPage',
       component: PreviewResolverPage ,
+    },
+    {
+      path: '/subscriptions-plans',
+      name: 'SubscriptionPlansPage',
+      component: SubscriptionsPlansPage,
+      auth: true,
+      authPage: 'LoginPage',
+      loadData: pageDataLoadingAPI.ManageListingsPage.loadData,
     },
   ];
 };

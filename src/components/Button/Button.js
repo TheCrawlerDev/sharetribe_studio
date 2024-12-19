@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { bool, node, string } from 'prop-types';
 import classNames from 'classnames';
-
+import { useHistory } from 'react-router-dom';
 import { useRouteConfiguration } from '../../context/routeConfigurationContext';
 import { findRouteByRouteName } from '../../util/routes';
 import { IconSpinner, IconCheckmark } from '../../components';
 
 import css from './Button.module.css';
 
-const PlainButton = props => {
+export const PlainButton = props => {
   const [mounted, setMounted] = useState(false);
   const routeConfiguration = useRouteConfiguration();
 
@@ -100,9 +100,28 @@ const ButtonWithPagePreload = props => {
   return <PlainButton {...restProps} {...onOverButtonMaybe} />;
 };
 
+const ButtonWithHref = props => {
+  const routeConfiguration = useRouteConfiguration();
+  const { enforcePageHref, ...restProps } = props;
+  const history = useHistory();
+
+  const { path } = findRouteByRouteName(enforcePageHref, routeConfiguration);
+
+  return (
+    <PlainButton
+      {...restProps}
+      onClick={() => {
+        history.push(path);
+      }}
+    />
+  );
+};
+
 const Button = props => {
-  const { enforcePagePreloadFor, ...restProps } = props;
-  return enforcePagePreloadFor ? (
+  const { enforcePageHref, enforcePagePreloadFor, ...restProps } = props;
+  return enforcePageHref ? (
+    <ButtonWithHref {...props} />
+  ) : enforcePagePreloadFor ? (
     <ButtonWithPagePreload {...props} />
   ) : (
     <PlainButton {...restProps} />

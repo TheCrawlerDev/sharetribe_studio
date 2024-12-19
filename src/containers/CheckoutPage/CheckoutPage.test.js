@@ -4,12 +4,11 @@ import Decimal from 'decimal.js';
 
 import { types as sdkTypes } from '../../util/sdkLoader';
 import {
-  createCurrentUser,
-  createImage,
-  createListing,
-  createTransaction,
   createUser,
+  createCurrentUser,
+  createListing,
   fakeIntl,
+  createTransaction,
 } from '../../util/testData';
 import {
   renderWithProviders as render,
@@ -17,8 +16,7 @@ import {
   getDefaultConfiguration,
 } from '../../util/testHelpers';
 
-import CheckoutPageWithPayment from './CheckoutPageWithPayment';
-import CheckoutPageWithInquiryProcess from './CheckoutPageWithInquiryProcess';
+import { CheckoutPageComponent } from './CheckoutPage';
 import checkoutPageReducer, { SET_INITIAL_VALUES, setInitialValues } from './CheckoutPage.duck';
 
 const { Money } = sdkTypes;
@@ -108,8 +106,8 @@ describe('CheckoutPage', () => {
   it('Check that purchase has relevant info', () => {
     const listing = createListing(
       'listing1',
-      { publicData: { transactionProcessAlias: 'default-purchase/release-1', unitType: 'item' } },
-      { author: createUser('author'), images: [createImage('first-image')] }
+      { publicData: { transactionProcessAlias: 'default-purchase', unitType: 'item' } },
+      { author: createUser('author') }
     );
 
     const shippingFeeLineItem = [
@@ -124,13 +122,8 @@ describe('CheckoutPage', () => {
     ];
     const props = {
       ...commonProps,
-      pageData: {
-        orderData: { quantity: 2, deliveryMethod: 'shipping' },
-        listing,
-      },
-      processName: 'default-purchase',
-      listingTitle: listing.attributes.title,
-      title: 'CheckoutPage.default-purchase.title',
+      orderData: { quantity: 2, deliveryMethod: 'shipping' },
+      listing,
       speculatedTransaction: createTransaction({
         id: 'tx1',
         lineItems: lineItems.concat(shippingFeeLineItem),
@@ -138,7 +131,7 @@ describe('CheckoutPage', () => {
       }),
     };
 
-    render(<CheckoutPageWithPayment {...props} />);
+    render(<CheckoutPageComponent {...props} />);
 
     const purchaseTitle = 'CheckoutPage.default-purchase.title';
     expect(screen.getByRole('heading', { name: purchaseTitle })).toBeInTheDocument();
@@ -182,26 +175,21 @@ describe('CheckoutPage', () => {
   it('Check that booking has relevant info', () => {
     const listing = createListing(
       'listing1',
-      { publicData: { transactionProcessAlias: 'default-booking/release-1', unitType: 'day' } },
-      { author: createUser('author'), images: [createImage('first-image')] }
+      { publicData: { transactionProcessAlias: 'default-booking', unitType: 'day' } },
+      { author: createUser('author') }
     );
 
     const props = {
       ...commonProps,
-      pageData: {
-        orderData: { quantity: 2 },
-        listing,
-      },
-      processName: 'default-booking',
-      listingTitle: listing.attributes.title,
-      title: 'CheckoutPage.default-booking.title',
+      orderData: { quantity: 2 },
+      listing,
       speculatedTransaction: createTransaction({
         id: 'tx1',
         lineItems,
         total: new Money(2500, 'USD'),
       }),
     };
-    render(<CheckoutPageWithPayment {...props} />);
+    render(<CheckoutPageComponent {...props} />);
 
     const bookingTitle = 'CheckoutPage.default-booking.title';
     expect(screen.getByRole('heading', { name: bookingTitle })).toBeInTheDocument();
@@ -233,143 +221,6 @@ describe('CheckoutPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('Check that inquiry process has relevant info', () => {
-    const listing = createListing(
-      'listing1',
-      {
-        publicData: {
-          listingType: 'inquiry',
-          transactionProcessAlias: 'default-inquiry/release-1',
-          unitType: 'inquiry',
-        },
-      },
-      { author: createUser('author'), images: [createImage('first-image')] }
-    );
-
-    const defaultConfig = getDefaultConfiguration();
-
-    const props = {
-      ...commonProps,
-      pageData: {
-        orderData: {},
-        listing,
-      },
-      processName: 'default-inquiry',
-      listingTitle: listing.attributes.title,
-      title: 'CheckoutPage.default-inquiry.title',
-      // reset from commonProps
-      stripeCustomerFetched: null,
-      config: {
-        ...defaultConfig,
-        listing: {
-          ...defaultConfig.listing,
-          listingTypes: [
-            {
-              listingType: 'inquiry',
-              label: 'Inquiry',
-              transactionType: {
-                process: 'default-inquiry',
-                alias: 'default-inquiry/release-1',
-                unitType: 'inquiry',
-              },
-              defaultListingFields: {
-                price: true,
-              },
-            },
-          ],
-        },
-      },
-    };
-    render(<CheckoutPageWithInquiryProcess {...props} />);
-
-    const inquiryTitle = 'CheckoutPage.default-inquiry.title';
-    expect(screen.getByRole('heading', { name: inquiryTitle })).toBeInTheDocument();
-    const inquiryMessageLabel = 'CheckoutPageWithInquiryProcess.messageLabel';
-    expect(screen.getByRole('heading', { name: inquiryMessageLabel })).toBeInTheDocument();
-    // price
-    expect(screen.getAllByText('55')).toHaveLength(2);
-    const submitBtnText = 'CheckoutPageWithInquiryProcess.submitButtonText';
-    expect(screen.getByRole('button', { name: submitBtnText })).toBeInTheDocument();
-
-    // THESE SHOULD NOT BE PRESENT
-    const orderBreakdownTitle = 'CheckoutPage.default-inquiry.orderBreakdown';
-    expect(screen.queryByRole('heading', { name: orderBreakdownTitle })).not.toBeInTheDocument();
-
-    // These are rendered twice (mobile & desktop)
-    expect(screen.queryAllByText('OrderBreakdown.baseUnitQuantity')).toHaveLength(0);
-    expect(screen.queryAllByText('OrderBreakdown.shippingFee')).toHaveLength(0);
-    expect(screen.queryAllByText('OrderBreakdown.total')).toHaveLength(0);
-
-    const paymentHeading = 'StripePaymentForm.paymentHeading';
-    expect(screen.queryByRole('heading', { name: paymentHeading })).not.toBeInTheDocument();
-
-    const billingDetails = 'StripePaymentForm.billingDetails';
-    expect(screen.queryByRole('heading', { name: billingDetails })).not.toBeInTheDocument();
-
-    expect(
-      screen.queryByRole('button', { name: 'StripePaymentForm.submitPaymentInfo' })
-    ).not.toBeInTheDocument();
-  });
-
-  it('Check that inquiry process without price has relevant info', () => {
-    const listing = createListing(
-      'listing1',
-      {
-        publicData: {
-          listingType: 'inquiry',
-          transactionProcessAlias: 'default-inquiry/release-1',
-          unitType: 'inquiry',
-        },
-      },
-      { author: createUser('author'), images: [createImage('first-image')] }
-    );
-
-    const defaultConfig = getDefaultConfiguration();
-
-    const props = {
-      ...commonProps,
-      pageData: {
-        orderData: {},
-        listing,
-      },
-      processName: 'default-inquiry',
-      listingTitle: listing.attributes.title,
-      title: 'CheckoutPage.default-inquiry.title',
-      // reset from commonProps
-      stripeCustomerFetched: null,
-      config: {
-        ...defaultConfig,
-        listing: {
-          ...defaultConfig.listing,
-          listingTypes: [
-            {
-              listingType: 'inquiry',
-              label: 'Inquiry',
-              transactionType: {
-                process: 'default-inquiry',
-                alias: 'default-inquiry/release-1',
-                unitType: 'inquiry',
-              },
-              defaultListingFields: {
-                price: false,
-              },
-            },
-          ],
-        },
-      },
-    };
-    render(<CheckoutPageWithInquiryProcess {...props} />);
-
-    const inquiryTitle = 'CheckoutPage.default-inquiry.title';
-    expect(screen.getByRole('heading', { name: inquiryTitle })).toBeInTheDocument();
-    const inquiryMessageLabel = 'CheckoutPageWithInquiryProcess.messageLabel';
-    expect(screen.getByRole('heading', { name: inquiryMessageLabel })).toBeInTheDocument();
-    // price should not exists
-    expect(screen.queryAllByText('55')).toHaveLength(0);
-    const submitBtnText = 'CheckoutPageWithInquiryProcess.submitButtonText';
-    expect(screen.getByRole('button', { name: submitBtnText })).toBeInTheDocument();
-  });
-
   describe('Duck', () => {
     it('ActionCreator: setInitialValues(initialValues)', () => {
       const listing = createListing(
@@ -397,11 +248,8 @@ describe('CheckoutPage', () => {
         speculateTransactionError: null,
         speculateTransactionInProgress: false,
         speculatedTransaction: null,
-        isClockInSync: false,
         transaction: null,
         confirmPaymentError: null,
-        initiateInquiryError: null,
-        initiateInquiryInProgress: false,
       };
 
       it('should return the initial state', () => {

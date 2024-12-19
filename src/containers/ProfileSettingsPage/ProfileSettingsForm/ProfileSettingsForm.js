@@ -1,18 +1,16 @@
-import React, { Component } from 'react';
+import React, { Component, useState, useEffect } from 'react';
 import { bool, string } from 'prop-types';
 import { compose } from 'redux';
 import { Field, Form as FinalForm } from 'react-final-form';
+import { OnChange } from 'react-final-form-listeners';
 import isEqual from 'lodash/isEqual';
 import classNames from 'classnames';
-import arrayMutators from 'final-form-arrays';
 
 import { FormattedMessage, injectIntl, intlShape } from '../../../util/reactIntl';
 import { ensureCurrentUser } from '../../../util/data';
 import { propTypes } from '../../../util/types';
 import * as validators from '../../../util/validators';
 import { isUploadImageOverLimitError } from '../../../util/errors';
-import { getPropsForCustomUserFieldInputs } from '../../../util/userHelpers';
-
 import {
   Form,
   Avatar,
@@ -21,57 +19,146 @@ import {
   IconSpinner,
   FieldTextInput,
   H4,
-  CustomExtendedDataField,
+  AspectRatioWrapper,
+  Modal,
 } from '../../../components';
-
+import DiscordIconPng from '../../../assets/discord.png';
 import css from './ProfileSettingsForm.module.css';
+import { baseApiExternalFiles, createProfileSong, createQrCode } from '../../../util/api';
+import Waveform from '../../AudioPlayer/Waveform';
+import { SubscriptionPlansEnum } from '../../SubscriptionsPlansPage/SubscriptionsPlans.enum';
 
 const ACCEPT_IMAGES = 'image/*';
 const UPLOAD_CHANGE_DELAY = 2000; // Show spinner so that browser has time to load img srcset
 
-const DisplayNameMaybe = props => {
-  const { userTypeConfig, intl } = props;
+const FieldAddSong = props => {
+  const { user, formApi, onSongUploadHandler, aspectWidth = 1, aspectHeight = 1, ...rest } = props;
 
-  const isDisabled = userTypeConfig?.defaultUserFields?.displayName === false;
-  if (isDisabled) {
-    return null;
-  }
-
-  const { required } = userTypeConfig?.displayNameSettings || {};
-  const isRequired = required === true;
-
-  const validateMaybe = isRequired
-    ? {
-        validate: validators.required(
-          intl.formatMessage({
-            id: 'ProfileSettingsForm.displayNameRequired',
-          })
-        ),
-      }
-    : {};
+  const [songLabel, setSongLabel] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [alertError, setAlertError] = useState(false);
+  const [alertErrorMessage, setAlertErrorMessage] = useState('');
 
   return (
-    <div className={css.sectionContainer}>
-      <H4 as="h2" className={css.sectionTitle}>
-        <FormattedMessage id="ProfileSettingsForm.displayNameHeading" />
-      </H4>
-      <FieldTextInput
-        className={css.row}
-        type="text"
-        id="displayName"
-        name="displayName"
-        label={intl.formatMessage({
-          id: 'ProfileSettingsForm.displayNameLabel',
-        })}
-        placeholder={intl.formatMessage({
-          id: 'ProfileSettingsForm.displayNamePlaceholder',
-        })}
-        {...validateMaybe}
-      />
-      <p className={css.extraInfo}>
-        <FormattedMessage id="ProfileSettingsForm.displayNameInfo" />
-      </p>
-    </div>
+    <Field form={null} {...rest} songLabel={songLabel} setSongLabel={setSongLabel}>
+      {fieldProps => {
+        const { accept, input, label, disabled: fieldDisabled } = fieldProps;
+        const { name, type } = input;
+        const onChange = e => {
+          if (songLabel.length < 1) {
+            setAlertErrorMessage('Please enter the song name first and upload the song then.');
+            setLoading(false);
+            return setAlertError(true);
+          }
+          const file = e.target.files[0];
+          let form = new FormData();
+          form.append('fileUpload', event.target.files[0]);
+          if (file != null) {
+            setLoading(true);
+            createProfileSong(user.id.uuid, form)
+              .then(response => {
+                return response.json();
+              })
+              .then(response => {
+                let song = { ...response.data, label: songLabel };
+                onSongUploadHandler(song);
+                fieldProps.setSong(song);
+                fieldProps.setSongInput(false);
+                setLoading(false);
+              })
+              .catch(error => {
+                setAlertErrorMessage("We can't proccess your file. Please try again with another.");
+                setAlertError(true);
+                setLoading(false);
+                console.log('error', error);
+              });
+          } else {
+            setAlertErrorMessage("We can't proccess your file, because it's null.");
+            setAlertError(true);
+            setLoading(false);
+          }
+        };
+        const inputProps = { accept, id: name, name, onChange, type };
+
+        return (
+          <div className={css.addImageWrapper}>
+            <Modal
+              {...props}
+              isOpen={alertError}
+              onClose={() => {
+                setAlertError(false);
+              }}
+              onManageDisableScrolling={() => {}}
+            >
+              <div style={{ margin: '1rem' }}>{alertErrorMessage}</div>
+            </Modal>
+            {loading ? (
+              <>
+                <span className={css.loader}></span>
+                <label>We are processing your request, please wait!</label>
+              </>
+            ) : (
+              <>
+                <FieldTextInput
+                  className={css.mb4pct}
+                  type="text"
+                  id="song_label"
+                  name="song_label"
+                  label="Song Name"
+                  placeholder="Type the name of your song"
+                />
+                <OnChange name="song_label">
+                  {(value, previous) => {
+                    setSongLabel(value);
+                  }}
+                </OnChange>
+                <AspectRatioWrapper
+                  style={{ marginBottom: '100px' }}
+                  width={aspectWidth}
+                  height={aspectHeight}
+                >
+                  <input {...inputProps} className={css.addImageInput} />
+                  <label htmlFor={name} className={css.addImage}>
+                    {label}
+                  </label>
+                </AspectRatioWrapper>
+              </>
+            )}
+          </div>
+        );
+      }}
+    </Field>
+  );
+};
+
+const FieldPreviewAndRemoveSong = props => {
+  const { user, formApi, onSongUploadHandler, aspectWidth = 1, aspectHeight = 1, ...rest } = props;
+
+  return (
+    <Field form={null} {...rest}>
+      {fieldProps => {
+        const removeSong = () => {
+          onSongUploadHandler(false);
+          fieldProps.setSongInput(true);
+        };
+
+        return (
+          <>
+            <label>Song Preview</label>
+            <div className={css.WaveAudio}>
+              <Waveform
+                url={fieldProps?.song?.Location}
+                height="50"
+                label={fieldProps?.song?.label}
+              ></Waveform>
+            </div>
+            <Button className={css.submitButton} onClick={removeSong} type="button">
+              Remove Song
+            </Button>
+          </>
+        );
+      }}
+    </Field>
   );
 };
 
@@ -103,12 +190,12 @@ class ProfileSettingsFormComponent extends Component {
     return (
       <FinalForm
         {...this.props}
-        mutators={{ ...arrayMutators }}
         render={fieldRenderProps => {
           const {
             className,
             currentUser,
             handleSubmit,
+            onChangeProfileSong,
             intl,
             invalid,
             onImageUpload,
@@ -120,14 +207,38 @@ class ProfileSettingsFormComponent extends Component {
             uploadImageError,
             uploadInProgress,
             form,
-            formId,
             marketplaceName,
             values,
-            userFields,
-            userTypeConfig,
           } = fieldRenderProps;
 
           const user = ensureCurrentUser(currentUser);
+
+          const [qrCode, setQrCode] = useState(null);
+
+          const [song, setSong] = useState(user?.attributes?.profile?.publicData?.song);
+
+          const [songInput, setSongInput] = useState(
+            !user?.attributes?.profile?.publicData?.song?.Location
+          );
+
+          let plan = user.attributes.profile.publicData?.subscription_paywall
+            ? user.attributes.profile.publicData?.subscription_paywall?.plan
+            : SubscriptionPlansEnum.FREE;
+
+          let premiumPlan = plan == SubscriptionPlansEnum.FREE ? false : true;
+
+          useEffect(() => {
+            let key = 'myStudioBookQrCode';
+            let storedQrCode = localStorage.getItem(key);
+            if (storedQrCode) {
+              setQrCode(storedQrCode);
+            } else {
+              createQrCode(window.location.origin, user.id.uuid).then(result => {
+                setQrCode(result.qr);
+                localStorage.setItem(key, result.qr);
+              });
+            }
+          }, []);
 
           // First name
           const firstNameLabel = intl.formatMessage({
@@ -159,6 +270,50 @@ class ProfileSettingsFormComponent extends Component {
           });
           const bioPlaceholder = intl.formatMessage({
             id: 'ProfileSettingsForm.bioPlaceholder',
+          });
+
+          // Social Network
+          const websiteLinkLabel = intl.formatMessage({
+            id: 'ProfileSettingsForm.websiteLink',
+          });
+          const instagramLabel = intl.formatMessage({
+            id: 'ProfileSettingsForm.instagram',
+          });
+          const spotifyLabel = intl.formatMessage({
+            id: 'ProfileSettingsForm.spotify',
+          });
+          const appleMusicLabel = intl.formatMessage({
+            id: 'ProfileSettingsForm.appleMusic',
+          });
+          const soundcloudLabel = intl.formatMessage({
+            id: 'ProfileSettingsForm.soundcloud',
+          });
+          const tidalLabel = intl.formatMessage({
+            id: 'ProfileSettingsForm.tidal',
+          });
+          const bandcampLabel = intl.formatMessage({
+            id: 'ProfileSettingsForm.bandcamp',
+          });
+          const websiteLinkPlaceholder = intl.formatMessage({
+            id: 'ProfileSettingsForm.websiteLinkPlaceholder',
+          });
+          const instagramPlaceholder = intl.formatMessage({
+            id: 'ProfileSettingsForm.instagramPlaceholder',
+          });
+          const spotifyPlaceholder = intl.formatMessage({
+            id: 'ProfileSettingsForm.spotifyPlaceholder',
+          });
+          const appleMusicPlaceholder = intl.formatMessage({
+            id: 'ProfileSettingsForm.appleMusicPlaceholder',
+          });
+          const soundcloudPlaceholder = intl.formatMessage({
+            id: 'ProfileSettingsForm.soundcloudPlaceholder',
+          });
+          const tidalPlaceholder = intl.formatMessage({
+            id: 'ProfileSettingsForm.tidalPlaceholder',
+          });
+          const bandcampPlaceholder = intl.formatMessage({
+            id: 'ProfileSettingsForm.bandcampPlaceholder',
           });
 
           const uploadingOverlay =
@@ -240,13 +395,6 @@ class ProfileSettingsFormComponent extends Component {
           const submitDisabled =
             invalid || pristine || pristineSinceLastSubmit || uploadInProgress || submitInProgress;
 
-          const userFieldProps = getPropsForCustomUserFieldInputs(
-            userFields,
-            intl,
-            userTypeConfig?.userType,
-            false
-          );
-
           return (
             <Form
               className={classes}
@@ -256,6 +404,51 @@ class ProfileSettingsFormComponent extends Component {
               }}
             >
               <div className={css.sectionContainer}>
+                {!!premiumPlan ? (
+                  <>
+                    <H4 as="h2" className={css.sectionTitle}>
+                      <FormattedMessage id="ProfileSettingsForm.inviteToDiscordTitle" />
+                    </H4>
+                    <Button
+                      className={`${css.submitButton} ${css.qrCode} ${css.inviteToDiscordButton}`}
+                      style={{
+                        backgroundImage: `url(${DiscordIconPng})`,
+                        backgroundSize: '195px 37px',
+                        backgroundPosition: 'center center',
+                        backgroundColor: '#5865F2',
+                      }}
+                      onClick={() => {
+                        window.open('https://discord.gg/EQtByy6g', '_blank');
+                      }}
+                    >
+                      {/* <span className={css.buttonIcon}>{DiscordIconLogo}</span> */}
+                      {/* <img src= alt="Red dot" /> */}
+                      {/* <FormattedMessage id="ProfileSettingsForm.inviteToDiscordButton" /> */}
+                    </Button>
+                  </>
+                ) : null}
+                {/* <H4 as="h2" className={css.sectionTitle}>
+                  <FormattedMessage id="ProfileSettingsForm.qrCode" />
+                </H4>
+                {!!qrCode ? (
+                  <>
+                    <img className={css.qrCode} src={qrCode} alt="StudioBookQRCode" />
+                    <Button
+                      className={`${css.submitButton} ${css.qrCode}`}
+                      onClick={() => {
+                        var a = document.createElement('a'); //Create <a>
+                        a.href = qrCode; //Image Base64 Goes here
+                        a.download = 'studiobook-profile-qrcode.png'; //File name Here
+                        a.click(); //Downloaded file
+                      }}
+                    >
+                      <FormattedMessage id="ProfileSettingsForm.exportQRCode" />
+                    </Button>
+                    <a href={qrCode} download="studiobook-profile-qrcode.png">
+                      If your download doesn't work click here
+                    </a>
+                  </>
+                ) : null} */}
                 <H4 as="h2" className={css.sectionTitle}>
                   <FormattedMessage id="ProfileSettingsForm.yourProfilePicture" />
                 </H4>
@@ -349,10 +542,7 @@ class ProfileSettingsFormComponent extends Component {
                   />
                 </div>
               </div>
-
-              <DisplayNameMaybe userTypeConfig={userTypeConfig} intl={intl} />
-
-              <div className={classNames(css.sectionContainer)}>
+              <div className={classNames(css.sectionContainer, css.lastSection)}>
                 <H4 as="h2" className={css.sectionTitle}>
                   <FormattedMessage id="ProfileSettingsForm.bioHeading" />
                 </H4>
@@ -363,15 +553,102 @@ class ProfileSettingsFormComponent extends Component {
                   label={bioLabel}
                   placeholder={bioPlaceholder}
                 />
-                <p className={css.extraInfo}>
+                <p className={css.bioInfo}>
                   <FormattedMessage id="ProfileSettingsForm.bioInfo" values={{ marketplaceName }} />
                 </p>
               </div>
+              {/* new components */}
+
               <div className={classNames(css.sectionContainer, css.lastSection)}>
-                {userFieldProps.map(fieldProps => (
-                  <CustomExtendedDataField {...fieldProps} formId={formId} />
-                ))}
+                <H4 as="h2" className={css.sectionTitle}>
+                  Your Song Preview
+                </H4>
+
+                {songInput ? (
+                  <FieldAddSong
+                    id="profileSong"
+                    name="profileSong"
+                    accept={'.mp3'}
+                    onSongUploadHandler={onChangeProfileSong}
+                    label={
+                      <span className={css.chooseImageText}>
+                        <span className={css.chooseImage}>+ Add a Song</span>
+                        <span className={css.imageTypes}>Only accepts .MP3</span>
+                      </span>
+                    }
+                    type="file"
+                    user={user}
+                    song={song}
+                    setSong={setSong}
+                    songInput={songInput}
+                    setSongInput={setSongInput}
+                    disabled={false}
+                    aspectWidth={10}
+                    aspectHeight={1}
+                  />
+                ) : (
+                  <FieldPreviewAndRemoveSong
+                    onSongUploadHandler={onChangeProfileSong}
+                    user={user}
+                    song={song}
+                    setSong={setSong}
+                    songInput={songInput}
+                    setSongInput={setSongInput}
+                    aspectWidth={10}
+                    aspectHeight={10}
+                  />
+                )}
               </div>
+
+              {/* new form */}
+
+              <div className={classNames(css.sectionContainer, css.lastSection)}>
+                <H4 as="h2" className={css.sectionTitle}>
+                  <FormattedMessage id="ProfileSettingsForm.socialHeading" />
+                </H4>
+                <FieldTextInput
+                  className={css.mb4pct}
+                  type="text"
+                  id="spotify"
+                  name="spotify"
+                  label={spotifyLabel}
+                  placeholder={spotifyPlaceholder}
+                />
+                <FieldTextInput
+                  className={css.mb4pct}
+                  type="text"
+                  id="appleMusic"
+                  name="appleMusic"
+                  label={appleMusicLabel}
+                  placeholder={appleMusicPlaceholder}
+                />
+                <FieldTextInput
+                  className={css.mb4pct}
+                  type="text"
+                  id="soundcloud"
+                  name="soundcloud"
+                  label={soundcloudLabel}
+                  placeholder={soundcloudPlaceholder}
+                />
+                <FieldTextInput
+                  className={css.mb4pct}
+                  type="text"
+                  id="tidal"
+                  name="tidal"
+                  label={tidalLabel}
+                  placeholder={tidalPlaceholder}
+                />
+                <FieldTextInput
+                  className={css.mb4pct}
+                  type="text"
+                  id="bandcamp"
+                  name="bandcamp"
+                  label={bandcampLabel}
+                  placeholder={bandcampPlaceholder}
+                />
+              </div>
+
+              {/* new components */}
               {submitError}
               <Button
                 className={css.submitButton}
@@ -393,7 +670,6 @@ class ProfileSettingsFormComponent extends Component {
 ProfileSettingsFormComponent.defaultProps = {
   rootClassName: null,
   className: null,
-  formId: null,
   uploadImageError: null,
   updateProfileError: null,
   updateProfileReady: false,
@@ -402,7 +678,6 @@ ProfileSettingsFormComponent.defaultProps = {
 ProfileSettingsFormComponent.propTypes = {
   rootClassName: string,
   className: string,
-  formId: string,
 
   uploadImageError: propTypes.error,
   uploadInProgress: bool.isRequired,

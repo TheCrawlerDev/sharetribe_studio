@@ -3,7 +3,7 @@ import { number, objectOf, oneOf, shape, string } from 'prop-types';
 import classNames from 'classnames';
 
 import { AspectRatioWrapper, ResponsiveImage } from '../../../../components/index.js';
-import { Link } from '../Link';
+import { useHistory } from "react-router-dom";
 
 import css from './Image.module.css';
 
@@ -32,7 +32,9 @@ MarkdownImage.propTypes = {
 
 // Image as a Field (by default these are only allowed inside a block).
 export const FieldImage = React.forwardRef((props, ref) => {
-  const { className, rootClassName, alt, image, sizes, link, ...otherProps } = props;
+  const { className, rootClassName, alt, image, sizes, ...otherProps } = props;
+
+  const history = useHistory();
 
   const { variants } = image?.attributes || {};
   const variantNames = Object.keys(variants);
@@ -41,35 +43,19 @@ export const FieldImage = React.forwardRef((props, ref) => {
   const firstImageVariant = variants[variantNames[0]];
   const { width: aspectWidth, height: aspectHeight } = firstImageVariant || {};
 
-  const imageLinkHref = link?.href || null;
-  const imageLinkFieldType = link?.fieldType || null;
-
-  const classes = classNames(
-    rootClassName || css.fieldImage,
-    className,
-    { [css.imageHoverEffect]: imageLinkHref } // Add a hover effect for the image if it is wrapped in a link
-  );
-
-  const responsiveImage = (
-    <ResponsiveImage
-      className={css.fieldImage}
-      ref={ref}
-      alt={alt}
-      image={image}
-      variants={variantNames}
-      sizes={sizes}
-      {...otherProps}
-    />
-  );
+  const classes = classNames(rootClassName || css.fieldImage, className);
   return (
     <AspectRatioWrapper className={classes} width={aspectWidth || 1} height={aspectHeight || 1}>
-      {imageLinkHref ? (
-        <Link href={imageLinkHref} title={alt} fieldType={imageLinkFieldType}>
-          {responsiveImage}
-        </Link>
-      ) : (
-        responsiveImage
-      )}
+      <ResponsiveImage
+        style={{ cursor: 'pointer' }} onClick={() => { if (!!props.href) { window.location.replace(props.href); } }}
+        className={css.fieldImage}
+        ref={ref}
+        alt={alt}
+        image={image}
+        variants={variantNames}
+        sizes={sizes}
+        {...otherProps}
+      />
     </AspectRatioWrapper>
   );
 });

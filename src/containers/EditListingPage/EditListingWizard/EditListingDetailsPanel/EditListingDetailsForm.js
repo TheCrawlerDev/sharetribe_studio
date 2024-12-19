@@ -1,18 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { arrayOf, bool, func, shape, string } from 'prop-types';
 import { compose } from 'redux';
 import { Field, Form as FinalForm } from 'react-final-form';
+import { OnChange } from 'react-final-form-listeners';
 import arrayMutators from 'final-form-arrays';
 import classNames from 'classnames';
 
 // Import util modules
 import { intlShape, injectIntl, FormattedMessage } from '../../../../util/reactIntl';
 import { EXTENDED_DATA_SCHEMA_TYPES, propTypes } from '../../../../util/types';
-import {
-  isFieldForCategory,
-  isFieldForListingType,
-  isValidCurrencyForTransactionProcess,
-} from '../../../../util/fieldHelpers';
 import { maxLength, required, composeValidators } from '../../../../util/validators';
 
 // Import shared components
@@ -22,10 +18,12 @@ import {
   FieldSelect,
   FieldTextInput,
   Heading,
-  CustomExtendedDataField,
+  AspectRatioWrapper,
 } from '../../../../components';
 // Import modules from this directory
+import CustomExtendedDataField from '../CustomExtendedDataField';
 import css from './EditListingDetailsForm.module.css';
+import { apiExternalFiles, createListingTerms } from '../../../../util/api';
 
 const TITLE_MAX_LENGTH = 60;
 
@@ -63,35 +61,26 @@ const FieldHidden = props => {
 // - transactionProcessAlias  Initiate correct transaction against Marketplace API
 // - unitType                 Main use case: pricing unit
 const FieldSelectListingType = props => {
-  const {
-    name,
-    listingTypes,
-    hasExistingListingType,
-    onListingTypeChange,
-    formApi,
-    formId,
-    intl,
-  } = props;
+  const { name, listingTypes, hasExistingListingType, onProcessChange, formApi, intl } = props;
   const hasMultipleListingTypes = listingTypes?.length > 1;
 
   const handleOnChange = value => {
+    const transactionProcessAlias = formApi.getFieldState('transactionProcessAlias')?.value;
     const selectedListingType = listingTypes.find(config => config.listingType === value);
     formApi.change('transactionProcessAlias', selectedListingType.transactionProcessAlias);
     formApi.change('unitType', selectedListingType.unitType);
 
-    if (onListingTypeChange) {
-      onListingTypeChange(selectedListingType);
+    const hasProcessChanged =
+      transactionProcessAlias !== selectedListingType.transactionProcessAlias;
+    if (onProcessChange && hasProcessChanged) {
+      onProcessChange(selectedListingType.transactionProcessAlias);
     }
-  };
-  const getListingTypeLabel = listingType => {
-    const listingTypeConfig = listingTypes.find(config => config.listingType === listingType);
-    return listingTypeConfig ? listingTypeConfig.label : listingType;
   };
 
   return hasMultipleListingTypes && !hasExistingListingType ? (
     <>
       <FieldSelect
-        id={formId ? `${formId}.${name}` : name}
+        id={name}
         name={name}
         className={css.listingTypeSelect}
         label={intl.formatMessage({ id: 'EditListingDetailsForm.listingTypeLabel' })}
@@ -120,7 +109,7 @@ const FieldSelectListingType = props => {
       <Heading as="h5" rootClassName={css.selectedLabel}>
         {intl.formatMessage({ id: 'EditListingDetailsForm.listingTypeLabel' })}
       </Heading>
-      <p className={css.selectedValue}>{getListingTypeLabel(formApi.getFieldState(name)?.value)}</p>
+      <p className={css.selectedValue}>{formApi.getFieldState(name)?.value}</p>
       <FieldHidden name={name} />
       <FieldHidden name="transactionProcessAlias" />
       <FieldHidden name="unitType" />
@@ -134,146 +123,136 @@ const FieldSelectListingType = props => {
   );
 };
 
-// Finds the correct subcategory within the given categories array based on the provided categoryIdToFind.
-const findCategoryConfig = (categories, categoryIdToFind) => {
-  return categories?.find(category => category.id === categoryIdToFind);
-};
-
-/**
- * Recursively render subcategory field inputs if there are subcategories available.
- * This function calls itself with updated props to render nested category fields.
- * The select field is used for choosing a category or subcategory.
- */
-const CategoryField = props => {
-  const { currentCategoryOptions, level, values, prefix, handleCategoryChange, intl } = props;
-
-  const currentCategoryKey = `${prefix}${level}`;
-
-  const categoryConfig = findCategoryConfig(currentCategoryOptions, values[`${prefix}${level}`]);
-
-  return (
-    <>
-      {currentCategoryOptions ? (
-        <FieldSelect
-          key={currentCategoryKey}
-          id={currentCategoryKey}
-          name={currentCategoryKey}
-          className={css.listingTypeSelect}
-          onChange={event => handleCategoryChange(event, level, currentCategoryOptions)}
-          label={intl.formatMessage(
-            { id: 'EditListingDetailsForm.categoryLabel' },
-            { categoryLevel: currentCategoryKey }
-          )}
-          validate={required(
-            intl.formatMessage(
-              { id: 'EditListingDetailsForm.categoryRequired' },
-              { categoryLevel: currentCategoryKey }
-            )
-          )}
-        >
-          <option disabled value="">
-            {intl.formatMessage(
-              { id: 'EditListingDetailsForm.categoryPlaceholder' },
-              { categoryLevel: currentCategoryKey }
-            )}
-          </option>
-
-          {currentCategoryOptions.map(option => (
-            <option key={option.id} value={option.id}>
-              {option.name}
-            </option>
-          ))}
-        </FieldSelect>
-      ) : null}
-
-      {categoryConfig?.subcategories?.length > 0 ? (
-        <CategoryField
-          currentCategoryOptions={categoryConfig.subcategories}
-          level={level + 1}
-          values={values}
-          prefix={prefix}
-          handleCategoryChange={handleCategoryChange}
-          intl={intl}
-        />
-      ) : null}
-    </>
-  );
-};
-
-const FieldSelectCategory = props => {
-  useEffect(() => {
-    checkIfInitialValuesExist();
-  }, []);
-
-  const { prefix, listingCategories, formApi, intl, setAllCategoriesChosen, values } = props;
-
-  // Counts the number of selected categories in the form values based on the given prefix.
-  const countSelectedCategories = () => {
-    return Object.keys(values).filter(key => key.startsWith(prefix)).length;
-  };
-
-  // Checks if initial values exist for categories and sets the state accordingly.
-  // If initial values exist, it sets `allCategoriesChosen` state to true; otherwise, it sets it to false
-  const checkIfInitialValuesExist = () => {
-    const count = countSelectedCategories(values, prefix);
-    setAllCategoriesChosen(count > 0);
-  };
-
-  // If a parent category changes, clear all child category values
-  const handleCategoryChange = (category, level, currentCategoryOptions) => {
-    const selectedCatLenght = countSelectedCategories();
-    if (level < selectedCatLenght) {
-      for (let i = selectedCatLenght; i > level; i--) {
-        formApi.change(`${prefix}${i}`, null);
-      }
-    }
-    const categoryConfig = findCategoryConfig(currentCategoryOptions, category).subcategories;
-    setAllCategoriesChosen(!categoryConfig || categoryConfig.length === 0);
-  };
-
-  return (
-    <CategoryField
-      currentCategoryOptions={listingCategories}
-      level={1}
-      values={values}
-      prefix={prefix}
-      handleCategoryChange={handleCategoryChange}
-      intl={intl}
-    />
-  );
-};
-
 // Add collect data for listing fields (both publicData and privateData) based on configuration
 const AddListingFields = props => {
-  const { listingType, listingFieldsConfig, selectedCategories, formId, intl } = props;
-  const targetCategoryIds = Object.values(selectedCategories);
-
+  const { listingType, listingFieldsConfig, intl } = props;
   const fields = listingFieldsConfig.reduce((pickedFields, fieldConfig) => {
-    const { key, schemaType, scope } = fieldConfig || {};
-    const namespacedKey = scope === 'public' ? `pub_${key}` : `priv_${key}`;
+    const { key, includeForListingTypes, schemaType, scope } = fieldConfig || {};
 
     const isKnownSchemaType = EXTENDED_DATA_SCHEMA_TYPES.includes(schemaType);
+    const isTargetProcessAlias =
+      includeForListingTypes == null || includeForListingTypes.includes(listingType);
     const isProviderScope = ['public', 'private'].includes(scope);
-    const isTargetListingType = isFieldForListingType(listingType, fieldConfig);
-    const isTargetCategory = isFieldForCategory(targetCategoryIds, fieldConfig);
 
-    return isKnownSchemaType && isProviderScope && isTargetListingType && isTargetCategory
+    return isKnownSchemaType && isTargetProcessAlias && isProviderScope
       ? [
           ...pickedFields,
           <CustomExtendedDataField
-            key={namespacedKey}
-            name={namespacedKey}
+            key={key}
+            name={key}
             fieldConfig={fieldConfig}
             defaultRequiredMessage={intl.formatMessage({
               id: 'EditListingDetailsForm.defaultRequiredMessage',
             })}
-            formId={formId}
           />,
         ]
       : pickedFields;
   }, []);
 
   return <>{fields}</>;
+};
+
+const FieldAddDocument = props => {
+  const { formApi, onUploadHandler, aspectWidth = 1, aspectHeight = 1, ...rest } = props;
+  return (
+    <Field form={null} {...rest}>
+      {fieldprops => {
+        const { accept, input, label } = fieldprops;
+        const { name, type } = input;
+        const onChange = e => {
+          let form = new FormData();
+          form.append('fileUpload', event.target.files[0]);
+          // formApi.change(`addDocument`, file);
+          // formApi.blur(`addDocument`);
+          createListingTerms(form)
+            .then(response => {
+              return response.json();
+            })
+            .then(result => {
+              onUploadHandler(result.data);
+            });
+        };
+        const inputProps = { accept, id: name, name, onChange, type };
+        return (
+          <div className={css.addImageWrapper}>
+            <label className={css.mb4pct}>Terms and Agreements</label>
+            <AspectRatioWrapper width={aspectWidth} height={aspectHeight}>
+              <input {...inputProps} className={css.addImageInput} />
+              <label htmlFor={name} className={css.addImage}>
+                {label}
+              </label>
+            </AspectRatioWrapper>
+          </div>
+        );
+      }}
+    </Field>
+  );
+};
+
+const FieldRemoveDocument = props => {
+  const { formApi, onUploadHandler, terms, ...rest } = props;
+  const [downloadInProgress, setDownloadInProgress] = React.useState(false);
+  return (
+    <Field form={null} {...rest}>
+      {fieldprops => {
+        return (
+          <div className={css.addImageWrapper}>
+            <label className={css.mb4pct}>Booking Agreement</label>
+            <div
+              style={{
+                flex: '1 1',
+                display: 'flex',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+              }}
+            >
+              <Button
+                style={{ background: 'green', width: '45%' }}
+                inProgress={downloadInProgress}
+                onClick={e => {
+                  e.preventDefault();
+                  setDownloadInProgress(true);
+                  apiExternalFiles(terms.Location)
+                    .then(response => response.blob())
+                    .then(blob => {                      
+                      const url = window.URL.createObjectURL(new Blob([blob]));
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.setAttribute('target', '_blank');
+                      link.setAttribute('download', `terms-and-conditions.pdf`);
+
+                      // Append to html link element page
+                      document.body.appendChild(link);
+
+                      // Start download
+                      link.click();
+
+                      // Clean up and remove the link
+                      link.parentNode.removeChild(link);
+
+                      setDownloadInProgress(false);
+                    })
+                    .catch(e => {
+                      // console.log(e);
+                    });
+                }}
+                type="button"
+              >
+                Download Document
+              </Button>
+              <Button
+                style={{ background: 'red', width: '45%' }}
+                onClick={() => onUploadHandler({})}
+                type="button"
+              >
+                Remove Document
+              </Button>
+            </div>
+          </div>
+        );
+      }}
+    </Field>
+  );
 };
 
 // Form that asks title, description, transaction process and unit type for pricing
@@ -291,28 +270,25 @@ const EditListingDetailsFormComponent = props => (
         formId,
         form: formApi,
         handleSubmit,
-        onListingTypeChange,
+        onProcessChange,
         intl,
         invalid,
         pristine,
-        marketplaceCurrency,
-        marketplaceName,
         selectableListingTypes,
-        selectableCategories,
         hasExistingListingType,
-        pickSelectedCategories,
-        categoryPrefix,
         saveActionMsg,
         updated,
         updateInProgress,
         fetchErrors,
         listingFieldsConfig,
-        listingCurrency,
         values,
       } = formRenderProps;
 
-      const { listingType, transactionProcessAlias, unitType } = values;
-      const [allCategoriesChosen, setAllCategoriesChosen] = useState(false);
+      const { listingType } = values;
+
+      const terms = values?.terms;
+
+      const [existentTerms, setExistentTerms] = React.useState(terms);
 
       const titleRequiredMessage = intl.formatMessage({
         id: 'EditListingDetailsForm.titleRequired',
@@ -323,117 +299,95 @@ const EditListingDetailsFormComponent = props => (
           maxLength: TITLE_MAX_LENGTH,
         }
       );
-
-      // Determine the currency to validate:
-      // - If editing an existing listing, use the listing's currency.
-      // - If creating a new listing, fall back to the default marketplace currency.
-      const currencyToCheck = listingCurrency || marketplaceCurrency;
-
-      // Verify if the selected listing type's transaction process supports the chosen currency.
-      // This checks compatibility between the transaction process
-      // and the marketplace or listing currency.
-      const isCompatibleCurrency = isValidCurrencyForTransactionProcess(
-        transactionProcessAlias,
-        currencyToCheck
-      );
-
       const maxLength60Message = maxLength(maxLengthMessage, TITLE_MAX_LENGTH);
-
-      const hasCategories = selectableCategories && selectableCategories.length > 0;
-      const showCategories = listingType && hasCategories;
-
-      const showTitle = hasCategories ? allCategoriesChosen : listingType;
-      const showDescription = hasCategories ? allCategoriesChosen : listingType;
-      const showListingFields = hasCategories ? allCategoriesChosen : listingType;
 
       const classes = classNames(css.root, className);
       const submitReady = (updated && pristine) || ready;
       const submitInProgress = updateInProgress;
-      const hasMandatoryListingTypeData = listingType && transactionProcessAlias && unitType;
-      const submitDisabled =
-        invalid ||
-        disabled ||
-        submitInProgress ||
-        !hasMandatoryListingTypeData ||
-        !isCompatibleCurrency;
+      const submitDisabled = invalid || disabled || submitInProgress;
 
       return (
         <Form className={classes} onSubmit={handleSubmit}>
           <ErrorMessage fetchErrors={fetchErrors} />
 
+          <FieldTextInput
+            id={`${formId}title`}
+            name="title"
+            className={css.title}
+            type="text"
+            label={intl.formatMessage({ id: 'EditListingDetailsForm.title' })}
+            placeholder={intl.formatMessage({ id: 'EditListingDetailsForm.titlePlaceholder' })}
+            maxLength={TITLE_MAX_LENGTH}
+            validate={composeValidators(required(titleRequiredMessage), maxLength60Message)}
+            autoFocus={autoFocus}
+          />
+
+          <FieldTextInput
+            id={`${formId}description`}
+            name="description"
+            className={css.description}
+            type="textarea"
+            label={intl.formatMessage({ id: 'EditListingDetailsForm.description' })}
+            placeholder={intl.formatMessage({
+              id: 'EditListingDetailsForm.descriptionPlaceholder',
+            })}
+            validate={required(
+              intl.formatMessage({
+                id: 'EditListingDetailsForm.descriptionRequired',
+              })
+            )}
+          />
+
           <FieldSelectListingType
             name="listingType"
             listingTypes={selectableListingTypes}
             hasExistingListingType={hasExistingListingType}
-            onListingTypeChange={onListingTypeChange}
+            // onProcessChange={()=>{
+            //   console.log('mudando o processo');
+            // }}
+            onProcessChange={onProcessChange}
             formApi={formApi}
-            formId={formId}
             intl={intl}
           />
 
-          {showCategories && isCompatibleCurrency && (
-            <FieldSelectCategory
-              values={values}
-              prefix={categoryPrefix}
-              listingCategories={selectableCategories}
+          <AddListingFields
+            listingType={listingType}
+            listingFieldsConfig={listingFieldsConfig}
+            intl={intl}
+          />
+
+          {existentTerms?.Location ? (
+            <FieldRemoveDocument
               formApi={formApi}
-              intl={intl}
-              allCategoriesChosen={allCategoriesChosen}
-              setAllCategoriesChosen={setAllCategoriesChosen}
+              terms={existentTerms}
+              onUploadHandler={values => {
+                formApi.change(`terms`, values);
+                formApi.blur(`terms`);
+                setExistentTerms(values);
+              }}
             />
-          )}
-
-          {showTitle && isCompatibleCurrency && (
-            <FieldTextInput
-              id={`${formId}title`}
-              name="title"
-              className={css.title}
-              type="text"
-              label={intl.formatMessage({ id: 'EditListingDetailsForm.title' })}
-              placeholder={intl.formatMessage({
-                id: 'EditListingDetailsForm.titlePlaceholder',
-              })}
-              maxLength={TITLE_MAX_LENGTH}
-              validate={composeValidators(required(titleRequiredMessage), maxLength60Message)}
-              autoFocus={autoFocus}
+          ) : (
+            <FieldAddDocument
+              id="listingTerms"
+              name="listingTerms"
+              accept={'.pdf'}
+              terms={existentTerms}
+              onUploadHandler={values => {
+                formApi.change(`terms`, values);
+                formApi.blur(`terms`);
+                setExistentTerms(values);
+              }}
+              label={
+                <span className={css.chooseImageText}>
+                  <span className={css.chooseImage}>+ Add a Document</span>
+                  <span className={css.imageTypes}>Only accepts .PDF</span>
+                </span>
+              }
+              type="file"
+              formApi={formApi}
+              aspectWidth={10}
+              aspectHeight={1}
             />
-          )}
-
-          {showDescription && isCompatibleCurrency && (
-            <FieldTextInput
-              id={`${formId}description`}
-              name="description"
-              className={css.description}
-              type="textarea"
-              label={intl.formatMessage({ id: 'EditListingDetailsForm.description' })}
-              placeholder={intl.formatMessage({
-                id: 'EditListingDetailsForm.descriptionPlaceholder',
-              })}
-              validate={required(
-                intl.formatMessage({
-                  id: 'EditListingDetailsForm.descriptionRequired',
-                })
-              )}
-            />
-          )}
-
-          {showListingFields && isCompatibleCurrency && (
-            <AddListingFields
-              listingType={listingType}
-              listingFieldsConfig={listingFieldsConfig}
-              selectedCategories={pickSelectedCategories(values)}
-              formId={formId}
-              intl={intl}
-            />
-          )}
-
-          {!isCompatibleCurrency && listingType && (
-            <p className={css.error}>
-              <FormattedMessage
-                id="EditListingDetailsForm.incompatibleCurrency"
-                values={{ marketplaceName, marketplaceCurrency }}
-              />
-            </p>
           )}
 
           <Button
@@ -455,6 +409,7 @@ EditListingDetailsFormComponent.defaultProps = {
   className: null,
   formId: 'EditListingDetailsForm',
   fetchErrors: null,
+  onProcessChange: null,
   hasExistingListingType: false,
   listingFieldsConfig: [],
 };
@@ -464,7 +419,7 @@ EditListingDetailsFormComponent.propTypes = {
   formId: string,
   intl: intlShape.isRequired,
   onSubmit: func.isRequired,
-  onListingTypeChange: func.isRequired,
+  onProcessChange: func,
   saveActionMsg: string.isRequired,
   disabled: bool.isRequired,
   ready: bool.isRequired,
@@ -475,7 +430,6 @@ EditListingDetailsFormComponent.propTypes = {
     showListingsError: propTypes.error,
     updateListingError: propTypes.error,
   }),
-  pickSelectedCategories: func.isRequired,
   selectableListingTypes: arrayOf(
     shape({
       listingType: string.isRequired,
@@ -484,7 +438,7 @@ EditListingDetailsFormComponent.propTypes = {
     })
   ).isRequired,
   hasExistingListingType: bool,
-  listingFieldsConfig: propTypes.listingFields,
+  listingFieldsConfig: propTypes.listingFieldsConfig,
 };
 
 export default compose(injectIntl)(EditListingDetailsFormComponent);

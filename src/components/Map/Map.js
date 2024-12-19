@@ -4,7 +4,6 @@ import classNames from 'classnames';
 import { useConfiguration } from '../../context/configurationContext';
 import { bool, number, object, string } from 'prop-types';
 import { propTypes } from '../../util/types';
-import { getMapProviderApiAccess } from '../../util/maps';
 import * as mapboxMap from './MapboxMap';
 import * as googleMapsMap from './GoogleMap';
 
@@ -24,7 +23,6 @@ export const Map = props => {
     useStaticMap,
   } = props;
   const mapsConfiguration = mapsConfig || config.maps;
-  const hasApiAccessForMapProvider = !!getMapProviderApiAccess(mapsConfiguration);
   const isGoogleMapsInUse = mapsConfiguration.mapProvider === 'googleMaps';
   const StaticMap = isGoogleMapsInUse ? googleMapsMap.StaticMap : mapboxMap.StaticMap;
   const DynamicMap = isGoogleMapsInUse ? googleMapsMap.DynamicMap : mapboxMap.DynamicMap;
@@ -48,8 +46,7 @@ export const Map = props => {
   const zoomLevel =
     zoom || mapsConfiguration.fuzzy.enabled ? mapsConfiguration.fuzzy.defaultZoomLevel : 11;
 
-  const isMapProviderAvailable = hasApiAccessForMapProvider && isMapsLibLoaded();
-  return !isMapProviderAvailable ? (
+  return !isMapsLibLoaded() ? (
     <div className={classes} />
   ) : useStaticMap ? (
     <StaticMap

@@ -8,6 +8,7 @@ import {
   isInRange,
   timestampToDate,
   getStartOf,
+  initialVisibleMonth,
   stringifyDateToISO8601,
   timeOfDayFromLocalToTimeZone,
   timeOfDayFromTimeZoneToLocal,
@@ -21,7 +22,7 @@ import {
 } from '../../../../../util/dates';
 import { exceptionFreeSlotsPerDate } from '../../../../../util/generators';
 import { bookingDateRequired } from '../../../../../util/validators';
-import { FieldSingleDatePicker, FieldSelect } from '../../../../../components';
+import { FieldDateInput, FieldSelect } from '../../../../../components';
 
 import {
   getStartOfNextMonth,
@@ -32,6 +33,9 @@ import {
   getMonthlyFetchRange,
 } from '../availability.helpers';
 
+import Next from '../NextArrow';
+import Prev from '../PrevArrow';
+
 import css from './ExceptionDateTimeRange.module.css';
 
 // Marketplace API allows fetching exceptions to 366 days into the future.
@@ -41,26 +45,13 @@ const TODAY = new Date();
 // Date formatting used for placeholder texts:
 const dateFormattingOptions = { month: 'short', day: 'numeric', weekday: 'short' };
 
-// Format form's value for the DatePicker input: convert timeOfDay to the local time
+// Format form's value for the react-dates input: convert timeOfDay to the local time
 const formatFieldDateInput = timeZone => v =>
   v && v.date ? { date: timeOfDayFromTimeZoneToLocal(v.date, timeZone) } : { date: v };
 
-// Parse DatePicker input's value: convert timeOfDay to the given time zone
+// Parse react-dates input's value: convert timeOfDay to the given time zone
 const parseFieldDateInput = timeZone => v =>
   v && v.date ? { date: timeOfDayFromLocalToTimeZone(v.date, timeZone) } : v;
-
-const showNextMonthStepper = (currentMonth, timeZone) => {
-  const nextMonthDate = getStartOfNextMonth(currentMonth, timeZone);
-  const endOfRange = endOfAvailabilityExceptionRange(timeZone, TODAY);
-
-  return !isDateSameOrAfter(nextMonthDate, endOfRange);
-};
-
-const showPreviousMonthStepper = (currentMonth, timeZone) => {
-  const prevMonthDate = getStartOfPrevMonth(currentMonth, timeZone);
-  const currentMonthDate = getStartOf(TODAY, 'month', timeZone);
-  return isDateSameOrAfter(prevMonthDate, currentMonthDate);
-};
 
 // Get available start times for new exceptions on given date.
 const getAvailableStartTimes = ({ selectedStartDate, availableSlots, intl, timeZone }) => {
@@ -171,7 +162,7 @@ const getAllTimeValues = ({
   return { startTime, endDate, endTime, selectedSlot };
 };
 
-// Prop function for DatePicker component: check if the day is blocked
+// Prop function for react-dates component: check if the day is blocked
 // For start date, all dates with overlapping availability slots are available
 // For end date, only dates within selected availability slot are available.
 const isDayBlocked = params => day => {
@@ -202,10 +193,10 @@ const isDayBlocked = params => day => {
   return selectedSlot ? !isInSlotRange(localizedDay, selectedSlot) : true;
 };
 
-// Prop function for DatePicker component: restrict availability within this range
+// Prop function for react-dates component: restrict availability within this range
 // By default, it's today ... today+366d
 const isOutsideRange = timeZone => day => {
-  // 'day' is pointing to browser's local time zone (DatePicker gives these).
+  // 'day' is pointing to browser's local time zone (react-dates gives these).
   // However, exceptionStartDay and other times refer to listing's timeZone.
   const localizedDay = timeOfDayFromLocalToTimeZone(day, timeZone);
   const rangeStart = getStartOf(TODAY, 'day', timeZone);
@@ -228,7 +219,7 @@ const onExceptionStartDateChange = (value, availableDates, props) => {
     return;
   }
 
-  // This callback function is called from DatePicker component.
+  // This callback function is called from react-dates component.
   // It gets raw value as a param - browser's local time instead of time in listing's timezone.
   const selectedStartDate = timeOfDayFromLocalToTimeZone(value.date, timeZone);
   const dayData = availableDates[stringifyDateToISO8601(selectedStartDate, timeZone)];
@@ -267,7 +258,7 @@ const onExceptionEndDateChange = (value, availableSlots, props) => {
   const { exceptionStartDate: exceptionStart, exceptionStartTime: selectedStartTime } = values;
   const selectedStartDate = exceptionStart.date;
 
-  // This callback function is called from DatePicker component.
+  // This callback function is called from react-dates component.
   // It gets raw value as a param - browser's local time instead of time in listing's timezone.
   const selectedEndDate = timeOfDayFromLocalToTimeZone(value.date, timeZone);
   const params = {
@@ -362,40 +353,23 @@ const ExceptionDateTimeRange = props => {
   const endDateDisabled = !exceptionStartDate || !exceptionStartTime;
   const endTimeDisabled = !exceptionStartDate || !exceptionStartTime || !exceptionEndDate;
   const nextBoundary = findNextBoundary(TODAY, 'hour', timeZone);
-  let placeholderTime = '08:00';
-  try {
-    placeholderTime = formatDateIntoPartials(nextBoundary, intl, { timeZone })?.time;
-  } catch (error) {
-    // No need to handle error
-  }
-
+  const placeholderTime = formatDateIntoPartials(nextBoundary, intl, { timeZone })?.time;
   const startOfToday = getStartOf(TODAY, 'day', timeZone);
 
   return (
     <>
       <div className={css.formRow}>
         <div className={css.field}>
-          <FieldSingleDatePicker
+          <FieldDateInput
+            className={css.fieldDateInput}
             name="exceptionStartDate"
             id={`${idPrefix}.exceptionStartDate`}
-            className={css.fieldDatePicker}
-            inputClassName={css.fieldDateInput}
-            popupClassName={css.fieldDatePopup}
             label={intl.formatMessage({
               id: 'EditListingAvailabilityExceptionForm.exceptionStartDateLabel',
             })}
             placeholderText={intl.formatDate(TODAY, dateFormattingOptions)}
             format={formatFieldDateInput(timeZone)}
             parse={parseFieldDateInput(timeZone)}
-            showPreviousMonthStepper={showPreviousMonthStepper(currentMonth, timeZone)}
-            showNextMonthStepper={showNextMonthStepper(currentMonth, timeZone)}
-            onMonthChange={date => {
-              const localizedDate = timeOfDayFromLocalToTimeZone(date, timeZone);
-              onMonthClick(
-                localizedDate < currentMonth ? getStartOfPrevMonth : getStartOfNextMonth
-              );
-              setCurrentMonth(localizedDate);
-            }}
             isDayBlocked={isDayBlocked({
               exceptionStartDay,
               exceptionStartTime,
@@ -406,6 +380,21 @@ const ExceptionDateTimeRange = props => {
             })}
             isOutsideRange={isOutsideRange(timeZone)}
             onChange={value => onExceptionStartDateChange(value, availableDates, props)}
+            onPrevMonthClick={() => onMonthClick(getStartOfPrevMonth)}
+            onNextMonthClick={() => onMonthClick(getStartOfNextMonth)}
+            initialVisibleMonth={initialVisibleMonth(exceptionStartDay || startOfToday, timeZone)}
+            navNext={
+              <Next
+                showUntilDate={endOfAvailabilityExceptionRange(timeZone, TODAY)}
+                startOfNextRange={getStartOfNextMonth(currentMonth, timeZone)}
+              />
+            }
+            navPrev={
+              <Prev
+                showUntilDate={getStartOf(TODAY, 'month', timeZone)}
+                startOfPrevRange={getStartOf(currentMonth, 'month', timeZone, -1, 'months')}
+              />
+            }
             useMobileMargins
             showErrorMessage={false}
             validate={bookingDateRequired('Required')}
@@ -436,12 +425,10 @@ const ExceptionDateTimeRange = props => {
       </div>
       <div className={css.formRow}>
         <div className={css.field}>
-          <FieldSingleDatePicker
+          <FieldDateInput
             name="exceptionEndDate"
             id={`${idPrefix}.exceptionEndDate`}
-            className={css.fieldDatePicker}
-            inputClassName={css.fieldDateInput}
-            popupClassName={css.fieldDatePopup}
+            className={css.fieldDateInput}
             label={intl.formatMessage({
               id: 'EditListingAvailabilityExceptionForm.exceptionEndDateLabel',
             })}
@@ -456,9 +443,23 @@ const ExceptionDateTimeRange = props => {
               timeZone,
               focusedInput: END_DATE,
             })}
-            startDate={stringifyDateToISO8601(exceptionEndDay || exceptionStartDay || TODAY)}
-            isOutsideRange={isOutsideRange(timeZone)}
             onChange={value => onExceptionEndDateChange(value, availableSlotsOnSelectedDate, props)}
+            onPrevMonthClick={() => onMonthClick(getStartOfPrevMonth)}
+            onNextMonthClick={() => onMonthClick(getStartOfNextMonth)}
+            initialVisibleMonth={initialVisibleMonth(exceptionStartDay || startOfToday, timeZone)}
+            navNext={
+              <Next
+                lastMonthDate={endOfAvailabilityExceptionRange(timeZone, TODAY)}
+                nextMonthDate={getStartOfNextMonth(currentMonth, timeZone)}
+              />
+            }
+            navPrev={
+              <Prev
+                currentMonthDate={getStartOf(TODAY, 'month', timeZone)}
+                prevMonthDate={getStartOf(currentMonth, 'month', timeZone, -1, 'months')}
+              />
+            }
+            isOutsideRange={isOutsideRange(timeZone)}
             useMobileMargins
             showErrorMessage={false}
             validate={bookingDateRequired('Required')}

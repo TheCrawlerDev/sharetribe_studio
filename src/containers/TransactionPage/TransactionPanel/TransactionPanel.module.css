@@ -80,7 +80,7 @@
 
   /* Rendering context to the same lavel as listing image */
   position: relative;
-  /* Flexbox would give too much width by default. */
+  /* Flex would give too much width by default. */
   width: 60px;
 
   @media (--viewportMedium) {
@@ -180,11 +180,6 @@
   @media (--viewportLarge) {
     display: none;
   }
-}
-
-.inquiryPrice {
-  composes: p from global;
-  font-weight: var(--fontWeightBold);
 }
 
 .transactionInfoMessage {
@@ -380,32 +375,6 @@
   }
 }
 
-.inquiryMessage {
-  /* Preserve newlines, but collapse other whitespace */
-  display: inline-block;
-  margin: 0;
-  padding: 8.5px 14px 8.5px 14px;
-  border-radius: 8px;
-  box-shadow: var(--boxShadow);
-  background-color: var(--colorWhite);
-
-  white-space: pre-line;
-
-  margin-top: 12px;
-  margin-bottom: 0;
-
-  @media (--viewportMedium) {
-    margin-top: 8px;
-    padding: 8px 14px 8px 14px;
-  }
-}
-
-.ownInquiryMessage {
-  composes: inquiryMessage;
-  background-color: var(--marketplaceColor);
-  color: var(--colorWhite);
-}
-
 .messageError {
   color: var(--colorFail);
   margin: 13px 0 22px 0;
@@ -417,11 +386,6 @@
   @media (--viewportLarge) {
     margin: 12px 0 23px 0;
   }
-}
-
-.longWord {
-  word-break: break-word;
-  hyphens: auto;
 }
 
 /* Passed-in props for FeedSection subcomponent */

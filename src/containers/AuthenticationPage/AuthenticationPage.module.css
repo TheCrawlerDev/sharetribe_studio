@@ -6,12 +6,10 @@
 
 .contentContainer {
   composes: marketplaceModalRootStyles from global;
-  min-height: calc(100vh - 60px);
-  height: auto;
+  height: calc(100vh - 60px);
 
   @media (--viewportMedium) {
     height: unset;
-    min-height: unset;
   }
 }
 
@@ -111,29 +109,6 @@
   }
 }
 
-/* userType selection */
-.userTypeSelect {
-  margin-bottom: 24px;
-
-  @media (--viewportMedium) {
-    margin-bottom: 32px;
-  }
-}
-
-.selectedLabel {
-  composes: label from global;
-}
-.selectedValue {
-  margin-top: 0;
-  margin-bottom: 6px;
-
-  @media (--viewportMedium) {
-    margin-top: 0;
-    margin-bottom: 0;
-    padding: 2px 0 6px 0;
-  }
-}
-
 /* ================ Hide Top bar in screens smaller than 768px  ================ */
 
 .hideOnMobile {
@@ -181,7 +156,7 @@
   word-break: break-all;
   /* use break-word if available */
   word-break: break-word;
-  hyphens: auto;
+  /* hyphens: auto; */
 }
 
 /* Helper links */

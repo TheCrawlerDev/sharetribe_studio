@@ -20,8 +20,8 @@ import {
   ensureSeparator,
   truncateToSubUnitPrecision,
 } from '../../util/currency';
-import * as log from '../../util/log';
 import { propTypes } from '../../util/types';
+import * as log from '../../util/log';
 
 import { ValidationError } from '../../components';
 
@@ -188,7 +188,7 @@ class CurrencyInputComponent extends Component {
       return { formattedValue, value: unformattedValue, unformattedValue };
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.warn('Not a valid value.', e);
+      console.error(e);
 
       // If an error occurs while filling input field, use previous values
       // This ensures that string like '12.3r' doesn't end up to a state.

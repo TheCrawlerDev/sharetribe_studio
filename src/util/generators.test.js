@@ -8,7 +8,6 @@ import {
   generateMonths,
   exceptionFreeSlotsPerDate,
   availabilityPerDate,
-  timeSlotsPerDate,
 } from './generators';
 
 describe('generators and iterators', () => {
@@ -278,9 +277,8 @@ describe('generators and iterators', () => {
         },
         {
           attributes: {
-            start: new Date('2023-01-03T08:00:00.000Z'), // 10 am in Europe/Helsinki
-            end: new Date('2023-01-03T11:00:00.000Z'), // 1 pm in Europe/Helsinki
-            seats: 0,
+            start: new Date('2023-01-03T08:00.000Z'), // 10 am in Europe/Helsinki
+            end: new Date('2023-01-03T11:00.000Z'), // 1 pm in Europe/Helsinki
           },
         },
       ];
@@ -313,7 +311,7 @@ describe('generators and iterators', () => {
             { "dayOfWeek": "tue", "startTime": "09:00", "endTime": "12:00", "seats": 1 },
             { "dayOfWeek": "tue", "startTime": "13:00", "endTime": "17:00", "seats": 1 },
           ],
-          "exceptions": [{ "attributes": { "start": "2023-01-03T08:00:00.000Z", "end": "2023-01-03T11:00:00.000Z", "seats": 0 } }],
+          "exceptions": [],
           "ranges": [
             {
               "start": "2023-01-02T22:00:00.000Z",
@@ -322,7 +320,7 @@ describe('generators and iterators', () => {
             },
             {
               "start": "2023-01-03T07:00:00.000Z",
-              "end": "2023-01-03T08:00:00.000Z",
+              "end": "2023-01-03T10:00:00.000Z",
               "seats": 1,
               "plan": {
                 "start": "2023-01-03T07:00:00.000Z",
@@ -331,16 +329,9 @@ describe('generators and iterators', () => {
               }
             },
             {
-              "start": "2023-01-03T08:00:00.000Z",
+              "start": "2023-01-03T10:00:00.000Z",
               "end": "2023-01-03T11:00:00.000Z",
-              "seats": 0,
-              "exception": {
-                "attributes": {
-                  "start": "2023-01-03T08:00:00.000Z",
-                  "end": "2023-01-03T11:00:00.000Z",
-                  "seats": 0
-                }
-              }
+              "seats": 0
             },
             {
               "start": "2023-01-03T11:00:00.000Z",
@@ -365,86 +356,21 @@ describe('generators and iterators', () => {
           "planEntries": [{ "dayOfWeek": "wed", "startTime": "00:00", "endTime": "00:00", "seats": 1 }],
           "exceptions": [],
           "ranges": [
-            {
+            { 
               "start": "2023-01-03T22:00:00.000Z",
               "end": "2023-01-04T22:00:00.000Z",
               "seats": 1,
-              "plan": {
+              "plan": { 
                 "start": "2023-01-03T22:00:00.000Z",
                 "end": "2023-01-04T22:00:00.000Z",
-                "seats": 1
-              }
-            }
-          ],
-          "hasAvailability": true
-        }
+                "seats": 1,
+              },
+            }],
+          "hasAvailability": true,
+        },
       });
 
       const dateInfoHashMap = availabilityPerDate(start, end, plan, exceptions);
-      expect(JSON.stringify(dateInfoHashMap)).toEqual(expectedResult);
-    });
-  });
-
-  describe('timeSlotsPerDate(start, end, timeSlots, timeZone, options)', () => {
-    it('should return dates until end date, and map entries, exceptions to them', () => {
-      const start = parseDateFromISO8601('2023-01-02', 'Europe/Helsinki'); // Monday
-      const end = parseDateFromISO8601('2023-01-05', 'Europe/Helsinki'); // Wednesday
-      const timeZone = 'Europe/Helsinki';
-      const options = { seats: 1 };
-
-      const timeSlots = [
-        {
-          attributes: {
-            start: parseDateFromISO8601('2023-01-02', 'Europe/Helsinki'),
-            end: parseDateFromISO8601('2023-01-03', 'Europe/Helsinki'),
-            seats: 1,
-          },
-        },
-        {
-          attributes: {
-            start: new Date('2023-01-03T08:00:00.000Z'), // 10 am in Europe/Helsinki
-            end: new Date('2023-01-03T11:00:00.000Z'), // 1 pm in Europe/Helsinki
-            seats: 1,
-          },
-        },
-      ];
-
-      // prettier-ignore
-      const expectedResult = JSON.stringify({
-        "2023-01-02": {
-          "id": "2023-01-02",
-          "timeSlots": [
-            {
-              "attributes": {
-                "start": "2023-01-01T22:00:00.000Z",
-                "end": "2023-01-02T22:00:00.000Z",
-                "seats": 1
-              }
-            }
-          ],
-          "hasAvailability": true
-        },
-        "2023-01-03": {
-          "id": "2023-01-03",
-          "timeSlots": [
-            {
-              "attributes": {
-                "start": "2023-01-03T08:00:00.000Z",
-                "end": "2023-01-03T11:00:00.000Z",
-                "seats": 1
-              }
-            }
-          ],
-          "hasAvailability": true
-        },
-        "2023-01-04": {
-          "id": "2023-01-04",
-          "timeSlots": [],
-          "hasAvailability": false
-        }
-      });
-
-      const dateInfoHashMap = timeSlotsPerDate(start, end, timeSlots, timeZone, options);
       expect(JSON.stringify(dateInfoHashMap)).toEqual(expectedResult);
     });
   });

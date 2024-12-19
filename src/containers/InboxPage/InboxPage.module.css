@@ -1,5 +1,9 @@
 @import '../../styles/customMediaQueries.css';
 
+.topbar {
+  z-index: 1; /* ensure that Topbar shadow overlays content background */
+}
+
 .mobileTopbar {
   /* Size */
   width: 100%;
@@ -18,10 +22,6 @@
   box-shadow: none;
 
   @media (--viewportMedium) {
-    height: var(--topbarHeightDesktop);
-  }
-
-  @media (--viewportLarge) {
     display: none;
   }
 }

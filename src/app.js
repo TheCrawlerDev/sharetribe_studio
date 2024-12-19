@@ -2,6 +2,10 @@ import React from 'react';
 import { any, string } from 'prop-types';
 import ReactDOMServer from 'react-dom/server';
 
+// react-dates needs to be initialized before using any react-dates component
+// https://github.com/airbnb/react-dates#initialize
+// NOTE: Initializing it here will initialize it also for app.test.js
+import 'react-dates/initialize';
 import { HelmetProvider } from 'react-helmet-async';
 import { BrowserRouter, StaticRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
@@ -20,7 +24,6 @@ import { RouteConfigurationProvider } from './context/routeConfigurationContext'
 import { ConfigurationProvider } from './context/configurationContext';
 import { mergeConfig } from './util/configHelpers';
 import { IntlProvider } from './util/reactIntl';
-import { includeCSSProperties } from './util/style';
 import { IncludeScripts } from './util/includeScripts';
 
 import { MaintenanceMode } from './components';
@@ -30,7 +33,7 @@ import routeConfiguration from './routing/routeConfiguration';
 import Routes from './routing/Routes';
 
 // Sharetribe Web Template uses English translations as default translations.
-import defaultMessages from './translations/en.json';
+import defaultMessages from './translations/defaultMicrocopy.json';
 
 // If you want to change the language of default (fallback) translations,
 // change the imports to match the wanted locale:
@@ -56,7 +59,7 @@ import defaultMessages from './translations/en.json';
 // const hardCodedLocale = process.env.NODE_ENV === 'test' ? 'en' : 'fr';
 
 // Step 3:
-// The "./translations/en.json" has generic English translations
+// The "./translations/defaultMicrocopy.json" has generic English translations
 // that should work as a default translation if some translation keys are missing
 // from the hosted translation.json (which can be edited in Console). The other files
 // (e.g. en.json) in that directory has Biketribe themed translations.
@@ -65,10 +68,13 @@ import defaultMessages from './translations/en.json';
 // That way the priority order would be:
 //   1. hosted translation.json
 //   2. <lang>.json
-//   3. en.json
+//   3. defaultMicrocopy.json
 //
 // I.e. remove "const messagesInLocale" and add import for the correct locale:
 // import messagesInLocale from './translations/fr.json';
+//
+// However, the recommendation is that you translate the defaultMicrocopy.json file and keep it updated.
+// That way you can avoid importing <lang>.json into build files, which is better for performance.
 const messagesInLocale = {};
 
 // If translation key is missing from `messagesInLocale` (e.g. fr.json),
@@ -144,7 +150,7 @@ const MomentLocaleLoader = props => {
 
 const Configurations = props => {
   const { appConfig, children } = props;
-  const routeConfig = routeConfiguration(appConfig.layout, appConfig?.accessControl);
+  const routeConfig = routeConfiguration(appConfig.layout);
   const locale = isTestEnv ? 'en' : appConfig.localization.locale;
 
   return (
@@ -167,60 +173,9 @@ const MaintenanceModeError = props => {
   );
 };
 
-// This displays a warning if environment variable key contains a string "SECRET"
-const EnvironmentVariableWarning = props => {
-  const suspiciousEnvKey = props.suspiciousEnvKey;
-  // https://github.com/sharetribe/flex-integration-api-examples#warning-usage-with-your-web-app--website
-  const containsINTEG = str => str.toUpperCase().includes('INTEG');
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-      }}
-    >
-      <div style={{ width: '600px' }}>
-        <p>
-          Are you sure you want to reveal to the public web an environment variable called:{' '}
-          <b>{suspiciousEnvKey}</b>
-        </p>
-        <p>
-          All the environment variables that start with <i>REACT_APP_</i> prefix will be part of the
-          published React app that's running on a browser. Those variables are, therefore, visible
-          to anyone on the web. Secrets should only be used on a secure environment like the server.
-        </p>
-        {containsINTEG(suspiciousEnvKey) ? (
-          <p>
-            {'Note: '}
-            <span style={{ color: 'red' }}>
-              Do not use Integration API directly from the web app.
-            </span>
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-};
-
 export const ClientApp = props => {
   const { store, hostedTranslations = {}, hostedConfig = {} } = props;
   const appConfig = mergeConfig(hostedConfig, defaultConfig);
-
-  // Show warning on the localhost:3000, if the environment variable key contains "SECRET"
-  if (appSettings.dev) {
-    const envVars = process.env || {};
-    const envVarKeys = Object.keys(envVars);
-    const containsSECRET = str => str.toUpperCase().includes('SECRET');
-    const suspiciousSECRETKey = envVarKeys.find(
-      key => key.startsWith('REACT_APP_') && containsSECRET(key)
-    );
-
-    if (suspiciousSECRETKey) {
-      return <EnvironmentVariableWarning suspiciousEnvKey={suspiciousSECRETKey} />;
-    }
-  }
 
   // Show MaintenanceMode if the mandatory configurations are not available
   if (!appConfig.hasMandatoryConfigurations) {
@@ -232,13 +187,16 @@ export const ClientApp = props => {
     );
   }
 
-  // Marketplace color and the color for <PrimaryButton> come from configs
+  // Marketplace color and branding image comes from configs
   // If set, we need to create CSS Property and set it to DOM (documentElement is selected here)
   // This provides marketplace color for everything under <html> tag (including modals/portals)
   // Note: This is also set on Page component to provide server-side rendering.
   const elem = window.document.documentElement;
-  includeCSSProperties(appConfig.branding, elem);
-
+  if (appConfig.branding.marketplaceColor) {
+    elem.style.setProperty('--marketplaceColor', appConfig.branding.marketplaceColor);
+    elem.style.setProperty('--marketplaceColorDark', appConfig.branding.marketplaceColorDark);
+    elem.style.setProperty('--marketplaceColorLight', appConfig.branding.marketplaceColorLight);
+  }
   // This gives good input for debugging issues on live environments, but with test it's not needed.
   const logLoadDataCalls = appSettings?.env !== 'test';
 

@@ -101,10 +101,11 @@ export const resetPasswordError = e => ({
  */
 const requestSavePhoneNumber = params => (dispatch, getState, sdk) => {
   const phoneNumber = params.phoneNumber;
+  const protectedData = params.protectedData;
 
   return sdk.currentUser
     .updateProfile(
-      { protectedData: { phoneNumber } },
+      { protectedData: { ...protectedData, phoneNumber } },
       {
         expand: true,
         include: ['profileImage'],
@@ -194,12 +195,12 @@ const savePhoneNumber = params => (dispatch, getState, sdk) => {
  * Save email and phone number and update the current user.
  */
 const saveEmailAndPhoneNumber = params => (dispatch, getState, sdk) => {
-  const { email, phoneNumber, currentPassword } = params;
+  const { email, phoneNumber, currentPassword, protectedData } = params;
 
   // order of promises: 1. email, 2. phone number
   const promises = [
     dispatch(requestSaveEmail({ email, currentPassword })),
-    dispatch(requestSavePhoneNumber({ phoneNumber })),
+    dispatch(requestSavePhoneNumber({ phoneNumber, protectedData })),
   ];
 
   return Promise.all(promises)
@@ -229,16 +230,16 @@ const saveEmailAndPhoneNumber = params => (dispatch, getState, sdk) => {
 export const saveContactDetails = params => (dispatch, getState, sdk) => {
   dispatch(saveContactDetailsRequest());
 
-  const { email, currentEmail, phoneNumber, currentPhoneNumber, currentPassword } = params;
+  const { email, currentEmail, phoneNumber, currentPhoneNumber, currentPassword, protectedData } = params;
   const emailChanged = email !== currentEmail;
   const phoneNumberChanged = phoneNumber !== currentPhoneNumber;
 
   if (emailChanged && phoneNumberChanged) {
-    return dispatch(saveEmailAndPhoneNumber({ email, currentPassword, phoneNumber }));
+    return dispatch(saveEmailAndPhoneNumber({ email, currentPassword, phoneNumber, protectedData }));
   } else if (emailChanged) {
     return dispatch(saveEmail({ email, currentPassword }));
   } else if (phoneNumberChanged) {
-    return dispatch(savePhoneNumber({ phoneNumber }));
+    return dispatch(savePhoneNumber({ phoneNumber, protectedData }));
   }
 };
 

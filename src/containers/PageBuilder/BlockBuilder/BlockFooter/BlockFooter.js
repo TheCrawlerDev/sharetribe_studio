@@ -36,7 +36,7 @@ BlockFooter.defaultProps = {
 };
 
 BlockFooter.propTypes = {
-  blockId: string,
+  blockId: string.isRequired,
   className: string,
   rootClassName: string,
   textClassName: string,

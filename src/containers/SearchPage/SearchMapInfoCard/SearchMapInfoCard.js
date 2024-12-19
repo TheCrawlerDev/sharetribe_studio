@@ -18,11 +18,7 @@ const ListingCard = props => {
 
   const { title, price } = listing.attributes;
   const formattedPrice =
-    price && price.currency === config.currency
-      ? formatMoney(intl, price)
-      : price?.currency
-      ? price.currency
-      : null;
+    price && price.currency === config.currency ? formatMoney(intl, price) : price.currency;
   const firstImage = listing.images && listing.images.length > 0 ? listing.images[0] : null;
 
   const {
@@ -73,9 +69,7 @@ const ListingCard = props => {
           />
         </AspectRatioWrapper>
         <div className={classNames(css.info, { [css.borderRadiusInheritBottom]: !isInCarousel })}>
-          <div className={classNames(css.price, { [css.noPriceSetLabel]: !formattedPrice })}>
-            {formattedPrice}
-          </div>
+          <div className={css.price}>{formattedPrice}</div>
           <div className={css.name}>{title}</div>
         </div>
       </div>

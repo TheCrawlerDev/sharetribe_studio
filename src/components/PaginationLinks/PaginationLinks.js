@@ -1,12 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { injectIntl, intlShape } from '../../util/reactIntl';
 import classNames from 'classnames';
 import range from 'lodash/range';
-
-import { injectIntl, intlShape } from '../../util/reactIntl';
-import { propTypes } from '../../util/types';
-import { stringify } from '../../util/urlHelpers';
 import { IconArrowHead, NamedLink } from '../../components';
+import { stringify } from '../../util/urlHelpers';
+import { propTypes } from '../../util/types';
 
 import css from './PaginationLinks.module.css';
 
@@ -61,15 +60,9 @@ export const PaginationLinksComponent = props => {
   } = props;
   const classes = classNames(rootClassName || css.root, className);
 
-  const { page, totalPages, paginationLimit, paginationUnsupported } = pagination;
-  const hasPaginationLimit = !!paginationLimit;
-  const pageCountLimit = paginationUnsupported
-    ? 1
-    : hasPaginationLimit
-    ? paginationLimit
-    : totalPages;
+  const { page, totalPages } = pagination;
   const prevPage = page > 1 ? page - 1 : null;
-  const nextPage = page < pageCountLimit ? page + 1 : null;
+  const nextPage = page < totalPages ? page + 1 : null;
   const prevSearchParams = { ...pageSearchParams, page: prevPage };
   const nextSearchParams = { ...pageSearchParams, page: nextPage };
 
@@ -121,7 +114,7 @@ export const PaginationLinksComponent = props => {
 
   /* Numbered pagination links */
 
-  const pageNumbersNavLinks = getPageNumbersArray(page, pageCountLimit).map(v => {
+  const pageNumbersNavLinks = getPageNumbersArray(page, totalPages).map(v => {
     const isCurrentPage = v === page;
     const pageClassNames = classNames(css.toPageLink, { [css.currentPage]: isCurrentPage });
     return typeof v === 'number' ? (
